@@ -18,6 +18,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
   const [location, setLocation] = useState<LocationType>("gudang_l2");
   const [fromLocation, setFromLocation] = useState<LocationType>("gudang_l2");
   const [toLocation, setToLocation] = useState<LocationType>("gudang_l1");
+  const [expiryDate, setExpiryDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
@@ -40,6 +41,8 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
     selectedItem?.category === "fg" &&
     selectedItem?.bpom_tag === "non_bpom";
 
+  const showExpiryField = type === "masuk" && category === "bahan_baku";
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedItem || !qty) return;
@@ -53,6 +56,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
       qty: Number(qty),
       from_location: type === "transfer" ? fromLocation : type === "keluar" ? location : null,
       to_location: type === "transfer" ? toLocation : type === "masuk" ? location : null,
+      expiry_date: showExpiryField && expiryDate ? expiryDate : null,
     });
 
     setSaving(false);
@@ -64,6 +68,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
 
     setMessage({ kind: "success", text: "Tersimpan." });
     setQty("");
+    setExpiryDate("");
   }
 
   return (
@@ -142,6 +147,13 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
           </div>
         </div>
       </div>
+
+      {showExpiryField && (
+        <div>
+          <label className="mb-1 block text-sm text-stone-600">Tanggal kadaluarsa (opsional)</label>
+          <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="w-full" />
+        </div>
+      )}
 
       {type === "transfer" ? (
         <div className="flex gap-3">

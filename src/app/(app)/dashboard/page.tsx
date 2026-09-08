@@ -13,7 +13,7 @@ function groupValue(rows: CurrentStockRow[], predicate: (r: CurrentStockRow) => 
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const [{ data: stockRows }, { data: runningOrders }, { data: fgBatches }] = await Promise.all([
+  const [{ data: stockRows }, { data: runningOrders }, { data: fgBatches }, { data: expiringMaterials }] = await Promise.all([
     supabase.from("v_current_stock").select("*").returns<CurrentStockRow[]>(),
     supabase
       .from("job_orders")
@@ -26,7 +26,19 @@ export default async function DashboardPage() {
       .not("expiry_date", "is", null)
       .lte("expiry_date", new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10))
       .order("expiry_date", { ascending: true }),
+    supabase
+      .from("stock_movements")
+      .select("id, expiry_date, master_items(name)")
+      .eq("movement_type", "masuk")
+      .not("expiry_date", "is", null)
+      .lte("expiry_date", new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10))
+      .order("expiry_date", { ascending: true }),
   ]);
+
+  const expiringItems = [
+    ...(fgBatches ?? []).map((b) => ({ id: `fg-${b.id}`, name: (b.master_items as any)?.name ?? "-", expiry_date: b.expiry_date as string })),
+    ...(expiringMaterials ?? []).map((m) => ({ id: `mat-${m.id}`, name: (m.master_items as any)?.name ?? "-", expiry_date: m.expiry_date as string })),
+  ].sort((a, b) => a.expiry_date.localeCompare(b.expiry_date));
 
   const rows = stockRows ?? [];
 
@@ -40,7 +52,7 @@ export default async function DashboardPage() {
   const belowSafetyStock = rows.filter(
     (r) => r.safety_stock_qty !== null && r.qty_on_hand < r.safety_stock_qty
   );
-  const hasExpiring = !!fgBatches && fgBatches.length > 0;
+  const hasExpiring = expiringItems.length > 0;
   const hasRunningOrders = !!runningOrders && runningOrders.length > 0;
 
   return (
@@ -78,10 +90,9 @@ export default async function DashboardPage() {
             <p className="text-sm text-stone-400">Tidak ada batch yang mendekati kadaluarsa.</p>
           ) : (
             <ul className="divide-y divide-amber-100 text-sm">
-              {fgBatches!.map((b) => (
+              {expiringItems.map((b) => (
                 <li key={b.id} className="flex justify-between py-1.5 text-amber-900">
-                  {/* @ts-expect-error joined relation shape from Supabase */}
-                  <span>{b.master_items?.name}</span>
+                  <span>{b.name}</span>
                   <span className="figure">{b.expiry_date}</span>
                 </li>
               ))}

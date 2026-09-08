@@ -150,6 +150,48 @@ supabase/schema.sql           seluruh skema database
 - Nama aplikasi tetap "PURVU Inventory" di teks (sidebar, login) — yang
   diganti cuma mark visualnya ke identitas AWM sesuai fail yang dikirim.
 
+## Revisi kelima: transparansi logo, role Owner/Finance, hapus job order, tanggal kadaluarsa bahan baku
+
+- **Logo icon sekarang transparan** (background putihnya dihilangkan lewat
+  color-key + alpha ramp supaya tepinya tetap halus, bagian krem di dalam
+  mark tidak ikut tembus). File yang berubah: `public/logo-icon.png`,
+  `src/app/icon.png`, `public/logo-192.png`, `public/logo-512.png`.
+- **Kalau logo di halaman login masih belum muncul** setelah upload ulang:
+  kemungkinan besar file `public/logo-full.jpg` belum benar-benar ke-upload
+  ke repo (bukan bug di kode — build lokal saya lolos tanpa masalah).
+  Cara cek: buka `https://<domain-vercel-kamu>/logo-full.jpg` langsung di
+  browser. Kalau muncul gambar → masalahnya di cache/Vercel, coba redeploy.
+  Kalau 404 → file itu memang belum ada di repo, upload ulang khusus folder
+  `public/`.
+- **Role Owner**: sekarang murni viewer untuk Job Order & Shipment — bisa
+  buka daftar dan detail, tapi tombol "Job order baru", "Tambah shipment",
+  dan "Tutup job order" tidak muncul untuknya. Ini mengoreksi desain awal
+  yang sempat bilang "actual output diisi owner" — sekarang itu jadi tugas
+  SPV/Warehouse Staff, Owner cuma melihat hasilnya.
+- **Role Finance**: sekarang juga bisa membuka Job Order & Shipment
+  (sebelumnya tidak bisa sama sekali), sifatnya viewer sama seperti Owner,
+  termasuk bisa buka/cetak surat jalan tiap shipment.
+- **Role Settings**: dipersempit jadi SPV saja (Owner tidak lagi termasuk),
+  menjawab pertanyaan terbuka dari revisi sebelumnya.
+- **Hapus Job Order**: tombol hapus (ikon 🗑) muncul di daftar Job Order,
+  khusus untuk role SPV, dengan konfirmasi sebelum benar-benar terhapus.
+  Menghapus job order otomatis ikut menghapus semua shipment-nya.
+- **Pembatasan role di atas bukan cuma sembunyi tombol** — saya juga
+  perketat aturan di level database (Row Level Security), supaya Owner/
+  Finance memang tidak bisa input job order walau dicoba lewat cara lain
+  di luar UI. Ini butuh SQL tambahan, lihat instruksi di chat.
+- **Tanggal kadaluarsa bahan baku**: field baru "Tanggal kadaluarsa
+  (opsional)" muncul di Input Stok setiap kali tipe "Masuk" + kategori
+  "Bahan baku" dipilih. Tersimpan di kolom `stock_movements.expiry_date`
+  (baru), dan otomatis muncul juga di kartu "Mendekati kadaluarsa" di
+  Dashboard bersama data dari FG.
+- **Soal harga di shipment**: itu **harga per satuan** (per Liter untuk
+  ethanol/bibit, per Pcs untuk botol/stiker, dst), bukan harga beli per
+  batch pembelian. Total yang tertera di layar = qty dikali harga per
+  satuan itu. Kalau harga beli aktualmu per batch beda dari qty × harga
+  default, edit saja harga per satuan di Settings → Master item supaya
+  hasil kali-nya sesuai.
+
 ## Yang masih perlu dibangun/disempurnakan
 
 Ini scaffold awal yang sudah bisa dipakai, tapi beberapa bagian sengaja

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth";
 import { formatCurrency, formatWib } from "@/lib/utils";
 import type { JobOrder, MasterItem, Shipment } from "@/lib/types";
 import { AddShipmentForm } from "@/components/add-shipment-form";
@@ -15,6 +16,8 @@ export default async function JobOrderDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const profile = await getCurrentProfile();
+  const canInput = profile?.role === "spv" || profile?.role === "warehouse_staff";
 
   const { data: jobOrder } = await supabase
     .from("job_orders")
@@ -98,7 +101,7 @@ export default async function JobOrderDetailPage({
         </div>
       </div>
 
-      {jobOrder.status === "berjalan" && <CloseJobOrderForm jobOrderId={jobOrder.id} />}
+      {jobOrder.status === "berjalan" && canInput && <CloseJobOrderForm jobOrderId={jobOrder.id} />}
 
       <div className="space-y-3">
         <p className="text-sm font-medium">Shipment</p>
@@ -126,7 +129,7 @@ export default async function JobOrderDetailPage({
           <p className="text-sm text-stone-400">Belum ada shipment.</p>
         )}
 
-        {jobOrder.status === "berjalan" && (
+        {jobOrder.status === "berjalan" && canInput && (
           <AddShipmentForm jobOrderId={jobOrder.id} materials={materials ?? []} />
         )}
       </div>

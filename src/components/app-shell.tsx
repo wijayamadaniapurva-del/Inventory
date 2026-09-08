@@ -22,9 +22,9 @@ const LINKS: { href: string; label: string; icon: typeof LayoutDashboard; roles:
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/input", label: "Input stok", icon: ClipboardPlus, roles: ["warehouse_staff", "spv"] },
   { href: "/stok", label: "Stok", icon: Boxes, roles: ["owner", "spv", "warehouse_staff", "finance"] },
-  { href: "/job-order", label: "Job order & shipment", icon: Truck, roles: ["owner", "spv", "warehouse_staff"] },
+  { href: "/job-order", label: "Job order & shipment", icon: Truck, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/riwayat", label: "Riwayat", icon: History, roles: ["owner", "spv", "warehouse_staff", "finance"] },
-  { href: "/settings/master-item", label: "Settings", icon: Settings, roles: ["owner", "spv"] },
+  { href: "/settings/master-item", label: "Settings", icon: Settings, roles: ["spv"] },
 ];
 
 const ROLE_LABEL: Record<UserRole, string> = {

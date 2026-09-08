@@ -69,6 +69,7 @@ export interface StockMovement {
   to_location: LocationType | null;
   maklon_id: string | null;
   note: string | null;
+  expiry_date: string | null;
   created_by: string | null;
   created_at: string; // stored UTC — format with formatWib() before display
   // joined for display

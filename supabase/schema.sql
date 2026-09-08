@@ -128,6 +128,7 @@ create table stock_movements (
   to_location location_type,
   maklon_id uuid references maklon(id),
   note text,
+  expiry_date date, -- optional; set on 'masuk' movements for raw materials that expire
   created_by uuid references profiles(id),
   created_at timestamptz not null default now(),
   constraint transfer_needs_both_locations check (
@@ -140,8 +141,10 @@ create index idx_stock_movements_created_at on stock_movements(created_at desc);
 
 -- ---------------------------------------------------------------------
 -- Job Order (parent) -> Shipment (child), the core audit-trail module.
--- actual_output is entered manually by the owner (never trusted from
--- the maklon's own claim). service_fee lives here, not on Shipment,
+-- actual_output is entered manually by SPV/Warehouse Staff (never
+-- trusted from the maklon's own claim). Owner and Finance can view
+-- everything here but never input/edit (enforced below via RLS, not
+-- just hidden in the UI). service_fee lives here, not on Shipment,
 -- because it's charged per production job, not per delivery.
 -- ---------------------------------------------------------------------
 create table job_orders (
@@ -287,9 +290,41 @@ create policy "authenticated can write" on maklon for all using (auth.role() = '
 create policy "authenticated can write" on master_items for all using (auth.role() = 'authenticated');
 create policy "authenticated can write" on item_bom for all using (auth.role() = 'authenticated');
 create policy "authenticated can write" on stock_movements for all using (auth.role() = 'authenticated');
-create policy "authenticated can write" on job_orders for all using (auth.role() = 'authenticated');
-create policy "authenticated can write" on shipments for all using (auth.role() = 'authenticated');
-create policy "authenticated can write" on shipment_items for all using (auth.role() = 'authenticated');
+
+-- Job Order / Shipment: real role enforcement, not just hidden UI.
+-- Owner and Finance are view-only here; SPV and Warehouse Staff can
+-- create/edit; only SPV can delete a job order (cascades to its
+-- shipments automatically via the foreign key).
+create or replace function current_user_role()
+returns user_role
+language sql
+security definer
+stable
+as $$
+  select role from profiles where id = auth.uid()
+$$;
+
+create policy "spv and warehouse_staff can insert job_orders" on job_orders
+  for insert with check (current_user_role() in ('spv', 'warehouse_staff'));
+create policy "spv and warehouse_staff can update job_orders" on job_orders
+  for update using (current_user_role() in ('spv', 'warehouse_staff'));
+create policy "spv can delete job_orders" on job_orders
+  for delete using (current_user_role() = 'spv');
+
+create policy "spv and warehouse_staff can insert shipments" on shipments
+  for insert with check (current_user_role() in ('spv', 'warehouse_staff'));
+create policy "spv and warehouse_staff can update shipments" on shipments
+  for update using (current_user_role() in ('spv', 'warehouse_staff'));
+create policy "spv and warehouse_staff can delete shipments" on shipments
+  for delete using (current_user_role() in ('spv', 'warehouse_staff'));
+
+create policy "spv and warehouse_staff can insert shipment_items" on shipment_items
+  for insert with check (current_user_role() in ('spv', 'warehouse_staff'));
+create policy "spv and warehouse_staff can update shipment_items" on shipment_items
+  for update using (current_user_role() in ('spv', 'warehouse_staff'));
+create policy "spv and warehouse_staff can delete shipment_items" on shipment_items
+  for delete using (current_user_role() in ('spv', 'warehouse_staff'));
+
 create policy "authenticated can write" on fg_batches for all using (auth.role() = 'authenticated');
 create policy "authenticated can write" on app_settings for all using (auth.role() = 'authenticated');
 create policy "authenticated can write" on scalev_sync_log for all using (auth.role() = 'authenticated');
