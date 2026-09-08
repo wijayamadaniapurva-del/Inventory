@@ -1,0 +1,10 @@
+{
+  "name": "PURVU Inventory",
+  "short_name": "PURVU Inv",
+  "description": "Inventory & production tracking untuk produksi PURVU via maklon",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#1d4ed8",
+  "icons": []
+}
