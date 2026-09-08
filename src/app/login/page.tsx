@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -17,6 +17,17 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    const { data: email, error: lookupError } = await supabase.rpc(
+      "get_email_by_username",
+      { p_username: username.trim() }
+    );
+
+    if (lookupError || !email) {
+      setLoading(false);
+      setError("Username atau password salah.");
+      return;
+    }
+
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -25,7 +36,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (signInError) {
-      setError("Email atau password salah.");
+      setError("Username atau password salah.");
       return;
     }
 
@@ -40,17 +51,18 @@ export default function LoginPage() {
           PURVU Inventory
         </h1>
         <p className="mb-6 text-sm text-slate-500">
-          Masuk dengan akun yang sudah didaftarkan admin.
+          Masuk dengan username yang sudah didaftarkan admin.
         </p>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-slate-600">Email</label>
+            <label className="mb-1 block text-sm text-slate-600">Username</label>
             <input
-              type="email"
+              type="text"
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              autoCapitalize="none"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               className="w-full"
             />
           </div>
