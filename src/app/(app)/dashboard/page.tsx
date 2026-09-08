@@ -40,57 +40,17 @@ export default async function DashboardPage() {
   const belowSafetyStock = rows.filter(
     (r) => r.safety_stock_qty !== null && r.qty_on_hand < r.safety_stock_qty
   );
+  const hasExpiring = !!fgBatches && fgBatches.length > 0;
+  const hasRunningOrders = !!runningOrders && runningOrders.length > 0;
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {cards.map((c) => (
-          <div key={c.label} className="card">
-            <p className="text-xs text-slate-500">{c.label}</p>
-            <p className="figure mt-1 text-xl font-semibold">{formatCurrency(c.value)}</p>
-          </div>
-        ))}
-      </div>
+      <h1 className="page-title">Dashboard</h1>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="card">
-          <p className="mb-2 text-sm font-medium">Mendekati kadaluarsa (30 hari)</p>
-          {!fgBatches || fgBatches.length === 0 ? (
-            <p className="text-sm text-slate-400">Tidak ada batch yang mendekati kadaluarsa.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 text-sm">
-              {fgBatches.map((b) => (
-                <li key={b.id} className="flex justify-between py-1.5">
-                  {/* @ts-expect-error joined relation shape from Supabase */}
-                  <span>{b.master_items?.name}</span>
-                  <span className="text-amber-600">{b.expiry_date}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="card">
-          <p className="mb-2 text-sm font-medium">Job order berjalan</p>
-          {!runningOrders || runningOrders.length === 0 ? (
-            <p className="text-sm text-slate-400">Tidak ada job order yang sedang berjalan.</p>
-          ) : (
-            <ul className="divide-y divide-slate-100 text-sm">
-              {runningOrders.map((jo) => (
-                <li key={jo.id} className="flex justify-between py-1.5">
-                  <span>
-                    {jo.master_items?.name} — {jo.maklon?.name}
-                  </span>
-                  <span className="text-accent-600">berjalan</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
-
+      {/* Urgent info first — position + color carry the priority, not a
+          different card shape. */}
       {belowSafetyStock.length > 0 && (
-        <div className="rounded-lg bg-red-50 p-4">
+        <div className="card-danger">
           <p className="mb-1 text-sm font-medium text-red-700">Di bawah safety stock</p>
           <p className="text-sm text-red-700">
             {belowSafetyStock
@@ -99,6 +59,56 @@ export default async function DashboardPage() {
           </p>
         </div>
       )}
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {cards.map((c) => (
+          <div key={c.label} className="card">
+            <p className="label-muted">{c.label}</p>
+            <p className="figure-lg mt-1">{formatCurrency(c.value)}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className={hasExpiring ? "card-warning" : "card"}>
+          <p className={"mb-2 text-sm font-medium " + (hasExpiring ? "text-amber-800" : "text-stone-700")}>
+            Mendekati kadaluarsa (30 hari)
+          </p>
+          {!hasExpiring ? (
+            <p className="text-sm text-stone-400">Tidak ada batch yang mendekati kadaluarsa.</p>
+          ) : (
+            <ul className="divide-y divide-amber-100 text-sm">
+              {fgBatches!.map((b) => (
+                <li key={b.id} className="flex justify-between py-1.5 text-amber-900">
+                  {/* @ts-expect-error joined relation shape from Supabase */}
+                  <span>{b.master_items?.name}</span>
+                  <span className="figure">{b.expiry_date}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className={hasRunningOrders ? "card-accent" : "card"}>
+          <p className={"mb-2 text-sm font-medium " + (hasRunningOrders ? "text-accent-700" : "text-stone-700")}>
+            Job order berjalan
+          </p>
+          {!hasRunningOrders ? (
+            <p className="text-sm text-stone-400">Tidak ada job order yang sedang berjalan.</p>
+          ) : (
+            <ul className="divide-y divide-accent-100 text-sm">
+              {runningOrders!.map((jo) => (
+                <li key={jo.id} className="flex justify-between py-1.5 text-accent-900">
+                  <span>
+                    {jo.master_items?.name} — {jo.maklon?.name}
+                  </span>
+                  <span className="badge bg-accent-100 text-accent-700">berjalan</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -15,8 +15,11 @@ export default async function InputStokPage() {
     .returns<MasterItem[]>();
 
   return (
-    <div className="max-w-md">
-      <InputStokForm items={items ?? []} />
+    <div>
+      <h1 className="page-title mb-4">Input Stok</h1>
+      <div className="max-w-md">
+        <InputStokForm items={items ?? []} />
+      </div>
     </div>
   );
 }

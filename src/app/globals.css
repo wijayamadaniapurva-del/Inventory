@@ -12,35 +12,88 @@ html {
 }
 
 body {
-  @apply bg-slate-50 text-slate-900;
+  /* Warm neutral (stone) instead of cool slate, dark-warm text instead of pure black */
+  @apply bg-stone-50 text-stone-800;
 }
 
-/* Numeric/tabular data (qty, price, HPP) reads better in mono, tabular figures */
+h1.page-title {
+  @apply text-lg font-semibold text-stone-900;
+}
+
+/* Numeric/tabular data (qty, price, HPP) reads better in mono, tabular figures,
+   with a clearly heavier weight than the label above it. */
 .figure {
   font-variant-numeric: tabular-nums;
   @apply font-mono;
 }
 
+.figure-lg {
+  font-variant-numeric: tabular-nums;
+  @apply font-mono text-2xl font-semibold text-stone-900;
+}
+
+.label-muted {
+  @apply text-xs font-medium uppercase tracking-wide text-stone-400;
+}
+
 input,
 select,
 textarea {
-  @apply rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
-    focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-accent-500;
+  @apply h-[38px] w-full rounded-lg border border-stone-300 bg-white px-3 text-sm text-stone-800
+    placeholder:text-stone-400
+    focus:outline-none focus:ring-2 focus:ring-accent-500/40 focus:border-accent-500;
+}
+
+textarea {
+  @apply h-auto py-2;
+}
+
+/* Native date input: match the same box as inputs/selects. The calendar
+   glyph itself is OS-rendered and can't be fully restyled without a
+   custom widget/library — this gets it as close to the rest of the
+   form language as CSS allows. */
+input[type="date"] {
+  @apply appearance-none;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 0.85;
 }
 
 button {
-  @apply rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700
-    hover:bg-slate-50 active:scale-[0.98] transition;
+  @apply h-[38px] rounded-lg border border-stone-300 bg-white px-3 text-sm font-medium text-stone-700
+    hover:bg-stone-50 active:scale-[0.98] transition disabled:opacity-50 disabled:pointer-events-none;
 }
 
 .btn-primary {
   @apply border-accent-600 bg-accent-600 text-white hover:bg-accent-700;
 }
 
+/* One consistent card standard app-wide — importance is signalled by
+   color/size/position, never by mixing radius or shadow styles. */
 .card {
-  @apply rounded-lg border border-slate-200 bg-white p-4;
+  @apply rounded-xl border border-stone-200 bg-white p-4 shadow-sm;
+}
+
+.card-warning {
+  @apply rounded-xl border border-amber-200 bg-amber-50 p-4 shadow-sm;
+}
+
+.card-danger {
+  @apply rounded-xl border border-red-200 bg-red-50 p-4 shadow-sm;
+}
+
+.card-accent {
+  @apply rounded-xl border border-accent-200 bg-accent-50 p-4 shadow-sm;
 }
 
 .badge {
   @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+}
+
+.skeleton {
+  @apply animate-pulse rounded-lg bg-stone-200;
 }

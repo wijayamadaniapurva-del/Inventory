@@ -32,7 +32,7 @@ export function CloseJobOrderForm({ jobOrderId }: { jobOrderId: string }) {
   return (
     <form onSubmit={handleSubmit} className="card flex items-end gap-3">
       <div className="flex-1">
-        <label className="mb-1 block text-sm text-slate-600">
+        <label className="mb-1 block text-sm text-stone-600">
           Actual output (dihitung sendiri oleh owner)
         </label>
         <input

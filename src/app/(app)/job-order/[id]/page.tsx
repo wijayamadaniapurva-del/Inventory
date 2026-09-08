@@ -51,9 +51,12 @@ export default async function JobOrderDetailPage({
 
   return (
     <div className="space-y-6">
-      <Link href="/job-order" className="text-sm text-accent-600">
-        ← Semua job order
-      </Link>
+      <div>
+        <h1 className="page-title">Job Order &amp; Shipment</h1>
+        <Link href="/job-order" className="text-sm text-accent-600">
+          ← Semua job order
+        </Link>
+      </div>
 
       <div className="card">
         <div className="mb-3 flex items-start justify-between">
@@ -61,7 +64,7 @@ export default async function JobOrderDetailPage({
             <p className="text-base font-semibold">
               {jobOrder.master_items?.name} — {jobOrder.maklon?.name}
             </p>
-            <p className="text-sm text-slate-500">Dibuka {formatWib(jobOrder.opened_at, false)}</p>
+            <p className="text-sm text-stone-500">Dibuka {formatWib(jobOrder.opened_at, false)}</p>
           </div>
           <span
             className={
@@ -73,23 +76,23 @@ export default async function JobOrderDetailPage({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 border-t border-stone-100 pt-3 sm:grid-cols-4">
           <div>
-            <p className="text-xs text-slate-500">Target output</p>
+            <p className="text-xs text-stone-500">Target output</p>
             <p className="figure font-medium">{jobOrder.target_output} pcs</p>
           </div>
           <div>
-            <p className="text-xs text-slate-500">Actual output</p>
+            <p className="text-xs text-stone-500">Actual output</p>
             <p className="figure font-medium">{jobOrder.actual_output ?? "-"} pcs</p>
           </div>
           <div>
-            <p className="text-xs text-slate-500">Selisih</p>
+            <p className="text-xs text-stone-500">Selisih</p>
             <p className={"figure font-medium " + (variance && variance > 0 ? "text-red-600" : "")}>
               {variance != null ? (variance > 0 ? `-${variance}` : `+${-variance}`) + " pcs" : "-"}
             </p>
           </div>
           <div>
-            <p className="text-xs text-slate-500">HPP riil / pcs</p>
+            <p className="text-xs text-stone-500">HPP riil / pcs</p>
             <p className="figure font-medium">{hppRiil != null ? formatCurrency(hppRiil) : "-"}</p>
           </div>
         </div>
@@ -102,12 +105,12 @@ export default async function JobOrderDetailPage({
         {(shipments ?? []).map((s) => (
           <div key={s.id} className="card">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm text-slate-500">{formatWib(s.shipped_at, false)}</p>
+              <p className="text-sm text-stone-500">{formatWib(s.shipped_at, false)}</p>
               <Link href={`/surat-jalan/${s.id}`} className="text-sm text-accent-600">
                 Cetak surat jalan
               </Link>
             </div>
-            <ul className="divide-y divide-slate-100 text-sm">
+            <ul className="divide-y divide-stone-100 text-sm">
               {(s.shipment_items ?? []).map((li) => (
                 <li key={li.id} className="flex justify-between py-1">
                   <span>
@@ -120,7 +123,7 @@ export default async function JobOrderDetailPage({
           </div>
         ))}
         {(!shipments || shipments.length === 0) && (
-          <p className="text-sm text-slate-400">Belum ada shipment.</p>
+          <p className="text-sm text-stone-400">Belum ada shipment.</p>
         )}
 
         {jobOrder.status === "berjalan" && (

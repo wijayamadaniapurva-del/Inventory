@@ -85,7 +85,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm text-slate-600">Kategori</label>
+        <label className="mb-1 block text-sm text-stone-600">Kategori</label>
         <select
           className="w-full"
           value={category}
@@ -100,7 +100,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm text-slate-600">Item</label>
+        <label className="mb-1 block text-sm text-stone-600">Item</label>
         <select className="w-full" value={selectedItem?.id ?? ""} onChange={(e) => setItemId(e.target.value)}>
           {itemsInCategory.map((i) => (
             <option key={i.id} value={i.id}>
@@ -124,7 +124,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
 
       <div className="flex gap-3">
         <div className="flex-1">
-          <label className="mb-1 block text-sm text-slate-600">Jumlah</label>
+          <label className="mb-1 block text-sm text-stone-600">Jumlah</label>
           <input
             type="number"
             min="0"
@@ -136,8 +136,8 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
           />
         </div>
         <div className="w-24">
-          <label className="mb-1 block text-sm text-slate-600">Satuan</label>
-          <div className="flex h-[38px] items-center text-sm text-slate-500">
+          <label className="mb-1 block text-sm text-stone-600">Satuan</label>
+          <div className="flex h-[38px] items-center text-sm text-stone-500">
             {selectedItem ? selectedItem.unit : "-"}
           </div>
         </div>
@@ -146,7 +146,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
       {type === "transfer" ? (
         <div className="flex gap-3">
           <div className="flex-1">
-            <label className="mb-1 block text-sm text-slate-600">Dari lokasi</label>
+            <label className="mb-1 block text-sm text-stone-600">Dari lokasi</label>
             <select className="w-full" value={fromLocation} onChange={(e) => setFromLocation(e.target.value as LocationType)}>
               {ALL_LOCATIONS.map((l) => (
                 <option key={l} value={l}>
@@ -156,7 +156,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
             </select>
           </div>
           <div className="flex-1">
-            <label className="mb-1 block text-sm text-slate-600">Ke lokasi</label>
+            <label className="mb-1 block text-sm text-stone-600">Ke lokasi</label>
             <select className="w-full" value={toLocation} onChange={(e) => setToLocation(e.target.value as LocationType)}>
               {ALL_LOCATIONS.map((l) => (
                 <option key={l} value={l}>
@@ -168,7 +168,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
         </div>
       ) : (
         <div>
-          <label className="mb-1 block text-sm text-slate-600">Lokasi</label>
+          <label className="mb-1 block text-sm text-stone-600">Lokasi</label>
           <select className="w-full" value={location} onChange={(e) => setLocation(e.target.value as LocationType)}>
             {ALL_LOCATIONS.map((l) => (
               <option key={l} value={l}>

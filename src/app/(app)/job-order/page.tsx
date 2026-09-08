@@ -20,6 +20,7 @@ export default async function JobOrderListPage() {
 
   return (
     <div className="space-y-6">
+      <h1 className="page-title">Job Order &amp; Shipment</h1>
       <NewJobOrderForm fgItems={fgItems ?? []} maklonList={maklonList ?? []} />
 
       <div className="space-y-2">
@@ -33,7 +34,7 @@ export default async function JobOrderListPage() {
               <p className="text-sm font-medium">
                 {jo.master_items?.name} — {jo.maklon?.name}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-stone-500">
                 Target {jo.target_output} pcs
                 {jo.actual_output != null ? ` · Actual ${jo.actual_output} pcs` : ""}
               </p>
@@ -49,7 +50,7 @@ export default async function JobOrderListPage() {
           </Link>
         ))}
         {(!jobOrders || jobOrders.length === 0) && (
-          <p className="text-sm text-slate-400">Belum ada job order.</p>
+          <p className="text-sm text-stone-400">Belum ada job order.</p>
         )}
       </div>
     </div>

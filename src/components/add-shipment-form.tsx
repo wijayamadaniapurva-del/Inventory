@@ -80,7 +80,7 @@ export function AddShipmentForm({
       {lines.map((line, idx) => (
         <div key={idx} className="flex items-end gap-2">
           <div className="flex-1">
-            <label className="mb-1 block text-sm text-slate-600">Material</label>
+            <label className="mb-1 block text-sm text-stone-600">Material</label>
             <select
               className="w-full"
               value={line.materialId}
@@ -94,7 +94,7 @@ export function AddShipmentForm({
             </select>
           </div>
           <div className="w-28">
-            <label className="mb-1 block text-sm text-slate-600">Qty</label>
+            <label className="mb-1 block text-sm text-stone-600">Qty</label>
             <input
               type="number"
               min="0"

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Nav } from "@/components/nav";
+import { AppShell } from "@/components/app-shell";
 import type { Profile } from "@/lib/types";
 
 export default async function AppLayout({
@@ -28,9 +28,8 @@ export default async function AppLayout({
   const role = profile?.role ?? "warehouse_staff";
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Nav role={role} fullName={profile?.full_name ?? null} />
-      <main className="mx-auto max-w-5xl p-4">{children}</main>
-    </div>
+    <AppShell role={role} fullName={profile?.full_name ?? null}>
+      {children}
+    </AppShell>
   );
 }

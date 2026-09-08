@@ -16,7 +16,8 @@ export default async function MasterItemPage() {
 
   return (
     <div>
-      <h1 className="mb-4 text-base font-semibold">Master item</h1>
+      <h1 className="page-title">Settings</h1>
+      <p className="mb-4 mt-1 text-sm text-stone-500">Master item</p>
       <MasterItemManager initialItems={items ?? []} />
     </div>
   );

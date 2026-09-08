@@ -24,6 +24,7 @@ export type QcStatus = "pending" | "lolos" | "reject";
 export interface Profile {
   id: string;
   full_name: string | null;
+  username: string | null;
   role: UserRole;
   created_at: string;
 }

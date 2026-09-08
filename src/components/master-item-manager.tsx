@@ -69,7 +69,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
 
       <div className="card !p-0 mb-3 overflow-hidden">
         <div
-          className="grid gap-2 border-b border-slate-200 px-4 py-2 text-xs text-slate-500"
+          className="grid gap-2 border-b border-stone-200 px-4 py-2 text-xs text-stone-500"
           style={{ gridTemplateColumns: category === "fg" ? "1fr 70px 110px 32px 32px" : "1fr 80px 32px 32px" }}
         >
           <span>Nama item</span>
@@ -93,14 +93,14 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
         ))}
 
         {items.length === 0 && (
-          <p className="px-4 py-6 text-sm text-slate-400">Belum ada item di kategori ini.</p>
+          <p className="px-4 py-6 text-sm text-stone-400">Belum ada item di kategori ini.</p>
         )}
       </div>
 
       {showAddForm ? (
         <form onSubmit={handleAdd} className="card max-w-md space-y-3">
           <div>
-            <label className="mb-1 block text-sm text-slate-600">Nama item</label>
+            <label className="mb-1 block text-sm text-stone-600">Nama item</label>
             <input
               type="text"
               required
@@ -111,7 +111,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm text-slate-600">Kategori</label>
+            <label className="mb-1 block text-sm text-stone-600">Kategori</label>
             <select
               className="w-full"
               value={newCategory}
@@ -125,7 +125,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm text-slate-600">Satuan</label>
+            <label className="mb-1 block text-sm text-stone-600">Satuan</label>
             <select className="w-full" value={newUnit} onChange={(e) => setNewUnit(e.target.value as ItemUnit)}>
               {UNITS.map((u) => (
                 <option key={u} value={u}>
@@ -136,7 +136,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
           </div>
           {newCategory === "fg" && (
             <div>
-              <label className="mb-1 block text-sm text-slate-600">Tag BPOM</label>
+              <label className="mb-1 block text-sm text-stone-600">Tag BPOM</label>
               <select className="w-full" value={newBpom} onChange={(e) => setNewBpom(e.target.value as BpomStatus)}>
                 <option value="bpom">BPOM</option>
                 <option value="non_bpom">Non-BPOM</option>
@@ -186,7 +186,7 @@ function ItemRow({
 
   if (editing) {
     return (
-      <div className="grid items-center gap-2 border-b border-slate-100 px-4 py-2" style={{ gridTemplateColumns: cols }}>
+      <div className="grid items-center gap-2 border-b border-stone-100 px-4 py-2" style={{ gridTemplateColumns: cols }}>
         <input value={name} onChange={(e) => setName(e.target.value)} className="!py-1" />
         <select value={unit} onChange={(e) => setUnit(e.target.value as ItemUnit)} className="!py-1">
           {UNITS.map((u) => (
@@ -208,7 +208,7 @@ function ItemRow({
         >
           ✓
         </button>
-        <button onClick={onCancel} className="!border-0 !p-0 text-slate-400" title="Batal">
+        <button onClick={onCancel} className="!border-0 !p-0 text-stone-400" title="Batal">
           ✕
         </button>
       </div>
@@ -216,15 +216,15 @@ function ItemRow({
   }
 
   return (
-    <div className="grid items-center gap-2 border-b border-slate-100 px-4 py-2 text-sm" style={{ gridTemplateColumns: cols }}>
+    <div className="grid items-center gap-2 border-b border-stone-100 px-4 py-2 text-sm" style={{ gridTemplateColumns: cols }}>
       <span>{item.name}</span>
-      <span className="text-slate-500">{item.unit}</span>
+      <span className="text-stone-500">{item.unit}</span>
       {isFg && (
         <span className={"badge " + (item.bpom_tag === "bpom" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
           {item.bpom_tag === "bpom" ? "BPOM" : "Non-BPOM"}
         </span>
       )}
-      <button onClick={onEdit} className="!border-0 !p-0 text-slate-500" title="Edit">
+      <button onClick={onEdit} className="!border-0 !p-0 text-stone-500" title="Edit">
         ✎
       </button>
       <button onClick={onDelete} className="!border-0 !p-0 text-red-500" title="Hapus">

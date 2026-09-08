@@ -26,6 +26,7 @@ create type qc_status as enum ('pending', 'lolos', 'reject');
 create table profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
+  username text unique,
   role user_role not null default 'warehouse_staff',
   created_at timestamptz not null default now()
 );
@@ -33,8 +34,8 @@ create table profiles (
 create function handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name)
-  values (new.id, new.raw_user_meta_data->>'full_name');
+  insert into public.profiles (id, full_name, username)
+  values (new.id, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'username');
   return new;
 end;
 $$ language plpgsql security definer;
@@ -42,6 +43,26 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure handle_new_user();
+
+-- Login is by username only (email stays an internal Supabase Auth
+-- implementation detail, never shown or typed by the user). The login
+-- page looks up the matching email via this function, then signs in
+-- with it normally.
+create or replace function get_email_by_username(p_username text)
+returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select au.email
+  from profiles p
+  join auth.users au on au.id = p.id
+  where lower(p.username) = lower(p_username)
+  limit 1;
+$$;
+
+revoke all on function get_email_by_username(text) from public;
+grant execute on function get_email_by_username(text) to anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- Maklon master data — supports N maklon natively (currently 3).

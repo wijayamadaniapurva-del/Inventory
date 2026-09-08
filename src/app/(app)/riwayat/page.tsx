@@ -46,6 +46,7 @@ export default async function RiwayatPage({
 
   return (
     <div className="space-y-4">
+      <h1 className="page-title">Riwayat</h1>
       <form className="flex flex-wrap gap-2" method="get">
         <select name="kategori" defaultValue={params.kategori ?? ""} className="w-40">
           <option value="">Semua kategori</option>
@@ -79,7 +80,7 @@ export default async function RiwayatPage({
       <div className="card overflow-x-auto !p-0">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-left text-xs text-slate-500">
+            <tr className="border-b border-stone-200 text-left text-xs text-stone-500">
               <th className="px-4 py-2">Tanggal</th>
               <th className="px-4 py-2">Tipe</th>
               <th className="px-4 py-2">Item</th>
@@ -89,7 +90,7 @@ export default async function RiwayatPage({
           </thead>
           <tbody>
             {filtered.map((m) => (
-              <tr key={m.id} className="border-b border-slate-100">
+              <tr key={m.id} className="border-b border-stone-100">
                 <td className="px-4 py-2 whitespace-nowrap">{formatWib(m.created_at)}</td>
                 <td className={"px-4 py-2 " + (MOVEMENT_COLOR[m.movement_type] ?? "")}>{m.movement_type}</td>
                 <td className="px-4 py-2">{m.master_items?.name}</td>
@@ -105,7 +106,7 @@ export default async function RiwayatPage({
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-slate-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-stone-400">
                   Tidak ada data untuk filter ini.
                 </td>
               </tr>

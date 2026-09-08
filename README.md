@@ -76,6 +76,40 @@ supabase/schema.sql           seluruh skema database
 - Semua timestamp disimpan UTC (`timestamptz`), ditampilkan WIB lewat
   `formatWib()`.
 
+## Perbaikan UI, akses role, dan performa navigasi (putaran kedua)
+
+- **Login pakai username**, bukan email — lihat `get_email_by_username()` di
+  `supabase/schema.sql` dan `src/app/login/page.tsx`. Email tetap ada di
+  Supabase Auth, tapi tidak pernah diketik/dilihat pengguna. Username diisi
+  lewat kolom `username` di tabel `profiles`.
+- **Job Order & Shipment sekarang juga muncul untuk Warehouse Staff**, tidak
+  cuma SPV/Owner — sebelumnya modul ini sebenarnya sudah ada di kode, hanya
+  tersembunyi dari menu karena daftar role di `components/app-shell.tsx`
+  belum menyertakan `warehouse_staff`. Settings tetap khusus SPV/Owner.
+- **Layout jadi sidebar kiri persisten** (`components/app-shell.tsx`),
+  dengan versi drawer untuk layar kecil — menggantikan tab horizontal di
+  atas. Tiap halaman sekarang punya judul (`<h1 className="page-title">`)
+  di dalam konten, tidak cuma mengandalkan tab aktif.
+- **Palet warna netral hangat (stone) + satu warna aksen (indigo)**,
+  konsisten di seluruh halaman (`tailwind.config.ts`, `globals.css`).
+  Kartu dashboard sekarang berubah warna sesuai kondisi datanya (`card`,
+  `card-warning`, `card-danger`, `card-accent` di `globals.css`) — misal
+  kartu "Mendekati kadaluarsa" baru oranye kalau memang ada datanya, kartu
+  "Di bawah safety stock" dipindah ke paling atas dashboard supaya info
+  mendesak terlihat duluan.
+- **`loading.tsx` di setiap halaman** (`src/app/(app)/*/loading.tsx`) —
+  skeleton kotak-kotak yang muncul instan saat pindah menu, sebelum data
+  dari Supabase selesai diambil. Ini penambahan paling berdampak untuk
+  kesan "lambat" saat navigasi, karena semua halaman pakai
+  `dynamic = "force-dynamic"` (selalu ambil data terbaru — sengaja, demi
+  akurasi data untuk fungsi audit), sehingga `<Link>` prefetch bawaan
+  Next.js (sudah dipakai sejak awal) tidak banyak membantu untuk halaman
+  se-dinamis ini; skeleton yang memberi feedback instan.
+- Date input distyle senada dengan dropdown/input lain (border, radius,
+  tinggi seragam) — ikon kalender bawaan browser tidak bisa di-restyle
+  total tanpa library date-picker terpisah, jadi itu satu-satunya bagian
+  yang masih terlihat sedikit "bawaan browser".
+
 ## Yang masih perlu dibangun/disempurnakan
 
 Ini scaffold awal yang sudah bisa dipakai, tapi beberapa bagian sengaja

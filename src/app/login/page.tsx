@@ -45,18 +45,21 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4">
       <div className="w-full max-w-sm">
-        <h1 className="mb-1 text-lg font-semibold text-slate-900">
-          PURVU Inventory
-        </h1>
-        <p className="mb-6 text-sm text-slate-500">
-          Masuk dengan username yang sudah didaftarkan admin.
-        </p>
+        <div className="mb-6 flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-600 text-sm font-semibold text-white">
+            P
+          </div>
+          <div>
+            <h1 className="text-base font-semibold text-stone-900">PURVU Inventory</h1>
+            <p className="text-xs text-stone-500">Masuk dengan akun yang sudah didaftarkan admin.</p>
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
           <div>
-            <label className="mb-1 block text-sm text-slate-600">Username</label>
+            <label className="mb-1 block text-sm text-stone-600">Username</label>
             <input
               type="text"
               required
@@ -67,7 +70,7 @@ export default function LoginPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm text-slate-600">Password</label>
+            <label className="mb-1 block text-sm text-stone-600">Password</label>
             <input
               type="password"
               required

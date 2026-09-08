@@ -52,7 +52,7 @@ export function NewJobOrderForm({
   return (
     <form onSubmit={handleSubmit} className="card max-w-md space-y-3">
       <div>
-        <label className="mb-1 block text-sm text-slate-600">SKU</label>
+        <label className="mb-1 block text-sm text-stone-600">SKU</label>
         <select className="w-full" value={skuId} onChange={(e) => setSkuId(e.target.value)}>
           {fgItems.map((i) => (
             <option key={i.id} value={i.id}>
@@ -62,7 +62,7 @@ export function NewJobOrderForm({
         </select>
       </div>
       <div>
-        <label className="mb-1 block text-sm text-slate-600">Maklon</label>
+        <label className="mb-1 block text-sm text-stone-600">Maklon</label>
         <select className="w-full" value={maklonId} onChange={(e) => setMaklonId(e.target.value)}>
           {maklonList.map((m) => (
             <option key={m.id} value={m.id}>
@@ -73,11 +73,11 @@ export function NewJobOrderForm({
       </div>
       <div className="flex gap-3">
         <div className="flex-1">
-          <label className="mb-1 block text-sm text-slate-600">Target output (pcs)</label>
+          <label className="mb-1 block text-sm text-stone-600">Target output (pcs)</label>
           <input type="number" min="1" required value={target} onChange={(e) => setTarget(e.target.value)} className="w-full" />
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-sm text-slate-600">Biaya jasa maklon</label>
+          <label className="mb-1 block text-sm text-stone-600">Biaya jasa maklon</label>
           <input type="number" min="0" value={fee} onChange={(e) => setFee(e.target.value)} className="w-full" />
         </div>
       </div>

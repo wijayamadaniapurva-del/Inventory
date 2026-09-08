@@ -39,29 +39,29 @@ export default async function SuratJalanPage({
 
       <div className="space-y-1 text-sm">
         <p>
-          <span className="text-slate-500">No. surat jalan:</span> {shipment.surat_jalan_no ?? shipment.id.slice(0, 8).toUpperCase()}
+          <span className="text-stone-500">No. surat jalan:</span> {shipment.surat_jalan_no ?? shipment.id.slice(0, 8).toUpperCase()}
         </p>
         <p>
-          <span className="text-slate-500">Tanggal:</span> {formatWib(shipment.shipped_at, false)}
+          <span className="text-stone-500">Tanggal:</span> {formatWib(shipment.shipped_at, false)}
         </p>
         <p>
-          <span className="text-slate-500">SKU:</span> {jobOrder?.master_items?.name}
+          <span className="text-stone-500">SKU:</span> {jobOrder?.master_items?.name}
         </p>
         <p>
-          <span className="text-slate-500">Maklon tujuan:</span> {jobOrder?.maklon?.name}
+          <span className="text-stone-500">Maklon tujuan:</span> {jobOrder?.maklon?.name}
         </p>
       </div>
 
       <table className="mt-6 w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-300 text-left">
+          <tr className="border-b border-stone-300 text-left">
             <th className="py-1">Material</th>
             <th className="py-1 text-right">Qty</th>
           </tr>
         </thead>
         <tbody>
           {(shipment.shipment_items ?? []).map((li) => (
-            <tr key={li.id} className="border-b border-slate-100">
+            <tr key={li.id} className="border-b border-stone-100">
               <td className="py-1">{li.master_items?.name}</td>
               <td className="py-1 text-right">
                 {li.qty} {li.master_items?.unit}
@@ -74,11 +74,11 @@ export default async function SuratJalanPage({
       <div className="mt-16 grid grid-cols-2 gap-8 text-center text-sm">
         <div>
           <p className="mb-16">Dikirim oleh</p>
-          <p className="border-t border-slate-400 pt-1">Warehouse</p>
+          <p className="border-t border-stone-400 pt-1">Warehouse</p>
         </div>
         <div>
           <p className="mb-16">Diterima oleh</p>
-          <p className="border-t border-slate-400 pt-1">{jobOrder?.maklon?.name}</p>
+          <p className="border-t border-stone-400 pt-1">{jobOrder?.maklon?.name}</p>
         </div>
       </div>
     </div>
