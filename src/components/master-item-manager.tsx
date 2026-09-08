@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { BpomStatus, ItemCategory, ItemUnit, MasterItem } from "@/lib/types";
-import { CATEGORY_LABEL } from "@/lib/utils";
+import { CATEGORY_LABEL, formatCurrency } from "@/lib/utils";
 
 const CATEGORIES: ItemCategory[] = ["bahan_baku", "packaging", "fg"];
 const UNITS: ItemUnit[] = ["liter", "pcs", "meter"];
@@ -20,6 +20,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
   const [newCategory, setNewCategory] = useState<ItemCategory>("bahan_baku");
   const [newUnit, setNewUnit] = useState<ItemUnit>("liter");
   const [newBpom, setNewBpom] = useState<BpomStatus>("bpom");
+  const [newPrice, setNewPrice] = useState("");
   const [saving, setSaving] = useState(false);
 
   const items = initialItems.filter((i) => i.category === category && i.is_active);
@@ -34,11 +35,13 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
       category: newCategory,
       unit: newUnit,
       bpom_tag: newCategory === "fg" ? newBpom : null,
+      default_price: Number(newPrice || 0),
     });
 
     setSaving(false);
     setShowAddForm(false);
     setNewName("");
+    setNewPrice("");
     router.refresh();
   }
 
@@ -70,11 +73,12 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
       <div className="card !p-0 mb-3 overflow-hidden">
         <div
           className="grid gap-2 border-b border-stone-200 px-4 py-2 text-xs text-stone-500"
-          style={{ gridTemplateColumns: category === "fg" ? "1fr 70px 110px 32px 32px" : "1fr 80px 32px 32px" }}
+          style={{ gridTemplateColumns: category === "fg" ? "1fr 60px 90px 110px 32px 32px" : "1fr 70px 110px 32px 32px" }}
         >
           <span>Nama item</span>
           <span>Satuan</span>
           {category === "fg" && <span>Tag BPOM</span>}
+          <span>Harga</span>
           <span></span>
           <span></span>
         </div>
@@ -124,15 +128,28 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
               ))}
             </select>
           </div>
-          <div>
-            <label className="mb-1 block text-sm text-stone-600">Satuan</label>
-            <select className="w-full" value={newUnit} onChange={(e) => setNewUnit(e.target.value as ItemUnit)}>
-              {UNITS.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
-            </select>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-sm text-stone-600">Satuan</label>
+              <select className="w-full" value={newUnit} onChange={(e) => setNewUnit(e.target.value as ItemUnit)}>
+                {UNITS.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-sm text-stone-600">Harga default</label>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
+                className="w-full"
+              />
+            </div>
           </div>
           {newCategory === "fg" && (
             <div>
@@ -181,14 +198,15 @@ function ItemRow({
   const [name, setName] = useState(item.name);
   const [unit, setUnit] = useState<ItemUnit>(item.unit);
   const [bpom, setBpom] = useState<BpomStatus>(item.bpom_tag ?? "bpom");
+  const [price, setPrice] = useState(String(item.default_price));
 
-  const cols = isFg ? "1fr 70px 110px 32px 32px" : "1fr 80px 32px 32px";
+  const cols = isFg ? "1fr 60px 90px 110px 32px 32px" : "1fr 70px 110px 32px 32px";
 
   if (editing) {
     return (
       <div className="grid items-center gap-2 border-b border-stone-100 px-4 py-2" style={{ gridTemplateColumns: cols }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} className="!py-1" />
-        <select value={unit} onChange={(e) => setUnit(e.target.value as ItemUnit)} className="!py-1">
+        <input value={name} onChange={(e) => setName(e.target.value)} className="!h-8" />
+        <select value={unit} onChange={(e) => setUnit(e.target.value as ItemUnit)} className="!h-8">
           {UNITS.map((u) => (
             <option key={u} value={u}>
               {u}
@@ -196,19 +214,26 @@ function ItemRow({
           ))}
         </select>
         {isFg && (
-          <select value={bpom} onChange={(e) => setBpom(e.target.value as BpomStatus)} className="!py-1 text-xs">
+          <select value={bpom} onChange={(e) => setBpom(e.target.value as BpomStatus)} className="!h-8 text-xs">
             <option value="bpom">BPOM</option>
             <option value="non_bpom">Non-BPOM</option>
           </select>
         )}
+        <input
+          type="number"
+          min="0"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          className="!h-8"
+        />
         <button
-          onClick={() => onSave({ name, unit, bpom_tag: isFg ? bpom : null })}
-          className="!border-0 !p-0 text-accent-600"
+          onClick={() => onSave({ name, unit, bpom_tag: isFg ? bpom : null, default_price: Number(price || 0) })}
+          className="!h-8 !w-8 !border-0 !p-0 text-accent-600"
           title="Simpan"
         >
           ✓
         </button>
-        <button onClick={onCancel} className="!border-0 !p-0 text-stone-400" title="Batal">
+        <button onClick={onCancel} className="!h-8 !w-8 !border-0 !p-0 text-stone-400" title="Batal">
           ✕
         </button>
       </div>
@@ -224,10 +249,11 @@ function ItemRow({
           {item.bpom_tag === "bpom" ? "BPOM" : "Non-BPOM"}
         </span>
       )}
-      <button onClick={onEdit} className="!border-0 !p-0 text-stone-500" title="Edit">
+      <span className="figure">{formatCurrency(item.default_price)}</span>
+      <button onClick={onEdit} className="!h-8 !w-8 !border-0 !p-0 text-stone-500" title="Edit">
         ✎
       </button>
-      <button onClick={onDelete} className="!border-0 !p-0 text-red-500" title="Hapus">
+      <button onClick={onDelete} className="!h-8 !w-8 !border-0 !p-0 text-red-500" title="Hapus">
         🗑
       </button>
     </div>

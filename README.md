@@ -110,6 +110,46 @@ supabase/schema.sql           seluruh skema database
   total tanpa library date-picker terpisah, jadi itu satu-satunya bagian
   yang masih terlihat sedikit "bawaan browser".
 
+## Revisi ketiga: harga, stok, maklon, logo
+
+- **Ke mana harga Rp 900.000 / Rp 12.750.000 di shipment kamu berasal?**
+  Dari `default_price` yang saya isi sebagai **contoh/placeholder** di seed
+  data `supabase/schema.sql` (Ethanol Rp45.000/L, bibit parfum Rp850.000/L)
+  waktu bikin skema pertama kali — bukan harga asli. Sekarang sudah bisa
+  diubah langsung dari Settings → Master item (lihat poin berikutnya),
+  tinggal diedit ke harga sebenarnya.
+- **Harga sekarang bisa diatur dari UI** — kolom "Harga" ditambahkan di
+  form Tambah Item dan bisa diedit inline per item di
+  Settings → Master item. Snapshot harga per Shipment tetap jalan seperti
+  sebelumnya (tidak berubah walau Master Harga diedit belakangan).
+- **Settings → Maklon** (halaman baru) — ganti nama maklon, atur apakah
+  maklon itu perlu dikirim ethanol/bibit, tambah maklon baru. Ada tab kecil
+  di atas Settings untuk pindah antara "Master item" dan "Maklon".
+- **Halaman Stok** (baru, menu sendiri di sidebar) — tabel stok per item,
+  dikelompokkan per kategori (Bahan baku/Packaging/FG), lengkap dengan
+  qty saat ini, harga, dan nilai. Ini yang sebelumnya belum ada — Dashboard
+  cuma menunjukkan total per kategori, bukan rincian per item.
+- **Link "Cetak surat jalan" sekarang buka tab baru**, tidak menggantikan
+  halaman Job Order yang sedang dibuka.
+- **Logo/favicon** — ditambahkan di `app/icon.svg` (favicon), login,
+  sidebar, dan surat jalan lewat komponen `components/logo.tsx`. Ini masih
+  **placeholder monogram "P"**, bukan logo asli PURVU — tinggal ganti isi
+  file itu begitu ada logo resminya, otomatis konsisten di ke-4 tempat itu.
+
+## Revisi keempat: logo asli
+
+- Logo asli PT Apurva Wijaya Madani (AWM) sudah dipasang, menggantikan
+  monogram placeholder:
+  - `public/logo-icon.png` — mark ikon saja, dipakai di sidebar/mobile top
+    bar lewat `components/logo.tsx`, dan juga jadi favicon (`src/app/icon.png`,
+    format Next.js untuk auto-detect favicon).
+  - `public/logo-full.jpg` — lockup lengkap (ikon + nama perusahaan),
+    dipakai di halaman login.
+  - `public/logo-192.png` & `logo-512.png` — ukuran standar untuk ikon PWA
+    (Add to Home Screen), direferensikan di `public/manifest.json`.
+- Nama aplikasi tetap "PURVU Inventory" di teks (sidebar, login) — yang
+  diganti cuma mark visualnya ke identitas AWM sesuai fail yang dikirim.
+
 ## Yang masih perlu dibangun/disempurnakan
 
 Ini scaffold awal yang sudah bisa dipakai, tapi beberapa bagian sengaja

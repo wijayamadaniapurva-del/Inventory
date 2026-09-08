@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   ClipboardPlus,
+  Boxes,
   Truck,
   History,
   Settings,
@@ -14,11 +15,13 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Logo } from "@/components/logo";
 import type { UserRole } from "@/lib/types";
 
 const LINKS: { href: string; label: string; icon: typeof LayoutDashboard; roles: UserRole[] }[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/input", label: "Input stok", icon: ClipboardPlus, roles: ["warehouse_staff", "spv"] },
+  { href: "/stok", label: "Stok", icon: Boxes, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/job-order", label: "Job order & shipment", icon: Truck, roles: ["owner", "spv", "warehouse_staff"] },
   { href: "/riwayat", label: "Riwayat", icon: History, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/settings/master-item", label: "Settings", icon: Settings, roles: ["owner", "spv"] },
@@ -52,15 +55,14 @@ function SidebarContent({ role, fullName, onNavigate }: { role: UserRole; fullNa
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 px-4 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-600 text-sm font-semibold text-white">
-          P
-        </div>
+        <Logo size={32} />
         <span className="text-sm font-semibold text-stone-900">PURVU Inventory</span>
       </div>
 
       <nav className="flex-1 space-y-0.5 px-3">
         {visibleLinks.map((link) => {
-          const active = pathname.startsWith(link.href);
+          const matchPrefix = link.href.startsWith("/settings") ? "/settings" : link.href;
+          const active = pathname.startsWith(matchPrefix);
           const Icon = link.icon;
           return (
             <Link
@@ -118,9 +120,7 @@ export function AppShell({
       {/* Mobile top bar */}
       <div className="flex items-center justify-between border-b border-stone-200 bg-white px-4 py-3 md:hidden">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent-600 text-xs font-semibold text-white">
-            P
-          </div>
+          <Logo size={28} />
           <span className="text-sm font-semibold text-stone-900">PURVU Inventory</span>
         </div>
         <button onClick={() => setDrawerOpen(true)} className="!h-8 !w-8 !p-0 !border-0">

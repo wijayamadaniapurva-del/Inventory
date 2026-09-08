@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { MasterItem } from "@/lib/types";
 import { MasterItemManager } from "@/components/master-item-manager";
+import { SettingsTabs } from "@/components/settings-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function MasterItemPage() {
     <div>
       <h1 className="page-title">Settings</h1>
       <p className="mb-4 mt-1 text-sm text-stone-500">Master item</p>
+      <SettingsTabs />
       <MasterItemManager initialItems={items ?? []} />
     </div>
   );

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatWib } from "@/lib/utils";
 import type { Shipment, JobOrder } from "@/lib/types";
+import { Logo } from "@/components/logo";
 import { PrintButton } from "./print-button";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +36,11 @@ export default async function SuratJalanPage({
       <div className="mb-6 flex items-center justify-between print:hidden">
         <h1 className="text-lg font-semibold">Surat Jalan</h1>
         <PrintButton />
+      </div>
+
+      <div className="mb-4 flex items-center gap-2">
+        <Logo size={28} />
+        <span className="text-sm font-semibold text-stone-900">PURVU</span>
       </div>
 
       <div className="space-y-1 text-sm">

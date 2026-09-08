@@ -106,7 +106,7 @@ export default async function JobOrderDetailPage({
           <div key={s.id} className="card">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-sm text-stone-500">{formatWib(s.shipped_at, false)}</p>
-              <Link href={`/surat-jalan/${s.id}`} className="text-sm text-accent-600">
+              <Link href={`/surat-jalan/${s.id}`} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-600">
                 Cetak surat jalan
               </Link>
             </div>

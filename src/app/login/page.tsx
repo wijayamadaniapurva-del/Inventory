@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -47,14 +48,17 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent-600 text-sm font-semibold text-white">
-            P
-          </div>
-          <div>
-            <h1 className="text-base font-semibold text-stone-900">PURVU Inventory</h1>
-            <p className="text-xs text-stone-500">Masuk dengan akun yang sudah didaftarkan admin.</p>
-          </div>
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Image
+            src="/logo-full.jpg"
+            alt="PT Apurva Wijaya Madani"
+            width={280}
+            height={90}
+            priority
+            className="mb-3"
+          />
+          <p className="text-sm font-medium text-stone-700">PURVU Inventory</p>
+          <p className="text-xs text-stone-500">Masuk dengan akun yang sudah didaftarkan admin.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
