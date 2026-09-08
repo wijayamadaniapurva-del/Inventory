@@ -43,5 +43,5 @@ export const LOCATION_LABEL: Record<string, string> = {
 export const CATEGORY_LABEL: Record<string, string> = {
   bahan_baku: "Bahan baku",
   packaging: "Packaging",
-  fg: "FG",
+  fg: "Finish Good",
 };

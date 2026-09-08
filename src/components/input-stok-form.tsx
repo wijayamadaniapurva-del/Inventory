@@ -41,11 +41,13 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
     selectedItem?.category === "fg" &&
     selectedItem?.bpom_tag === "non_bpom";
 
-  const showExpiryField = type === "masuk" && category === "bahan_baku";
+  const showExpiryField = type === "masuk" && (category === "bahan_baku" || category === "fg");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedItem || !qty) return;
+
+    if (!window.confirm(`Simpan ${type} ${qty} ${selectedItem.unit} ${selectedItem.name}?`)) return;
 
     setSaving(true);
     setMessage(null);

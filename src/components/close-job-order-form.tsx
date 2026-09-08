@@ -12,6 +12,8 @@ export function CloseJobOrderForm({ jobOrderId }: { jobOrderId: string }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!window.confirm(`Tutup job order dengan actual output ${actualOutput} pcs? Tindakan ini tidak bisa dibatalkan.`)) return;
+
     setSaving(true);
 
     // Actual output is entered manually by the owner — never taken from

@@ -6,6 +6,7 @@ import { formatCurrency, formatWib } from "@/lib/utils";
 import type { JobOrder, MasterItem, Shipment } from "@/lib/types";
 import { AddShipmentForm } from "@/components/add-shipment-form";
 import { CloseJobOrderForm } from "@/components/close-job-order-form";
+import { EditServiceFee } from "@/components/edit-service-fee";
 
 export const dynamic = "force-dynamic";
 
@@ -22,9 +23,10 @@ export default async function JobOrderDetailPage({
   const { data: jobOrder } = await supabase
     .from("job_orders")
     .select(
-      "id, target_output, actual_output, service_fee, status, opened_at, sku_item_id, master_items(name), maklon(name)"
+      "id, target_output, actual_output, service_fee, status, opened_at, sku_item_id, maklon_id, master_items(name), maklon(name)"
     )
     .eq("id", id)
+    .is("deleted_at", null)
     .single<JobOrder>();
 
   if (!jobOrder) notFound();
@@ -52,6 +54,9 @@ export default async function JobOrderDetailPage({
   const hppRiil =
     jobOrder.actual_output && jobOrder.actual_output > 0 ? totalCost / jobOrder.actual_output : null;
 
+  const skuName = jobOrder.master_items?.name ?? "-";
+  const maklonName = jobOrder.maklon?.name ?? "-";
+
   return (
     <div className="space-y-6">
       <div>
@@ -65,7 +70,7 @@ export default async function JobOrderDetailPage({
         <div className="mb-3 flex items-start justify-between">
           <div>
             <p className="text-base font-semibold">
-              {jobOrder.master_items?.name} — {jobOrder.maklon?.name}
+              {skuName} — {maklonName}
             </p>
             <p className="text-sm text-stone-500">Dibuka {formatWib(jobOrder.opened_at, false)}</p>
           </div>
@@ -79,7 +84,7 @@ export default async function JobOrderDetailPage({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-stone-100 pt-3 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 border-t border-stone-100 pt-3 sm:grid-cols-3 lg:grid-cols-5">
           <div>
             <p className="text-xs text-stone-500">Target output</p>
             <p className="figure font-medium">{jobOrder.target_output} pcs</p>
@@ -93,6 +98,14 @@ export default async function JobOrderDetailPage({
             <p className={"figure font-medium " + (variance && variance > 0 ? "text-red-600" : "")}>
               {variance != null ? (variance > 0 ? `-${variance}` : `+${-variance}`) + " pcs" : "-"}
             </p>
+          </div>
+          <div>
+            <p className="text-xs text-stone-500">Biaya jasa maklon</p>
+            {canInput ? (
+              <EditServiceFee jobOrderId={jobOrder.id} value={jobOrder.service_fee} />
+            ) : (
+              <p className="figure font-medium">{formatCurrency(jobOrder.service_fee)}</p>
+            )}
           </div>
           <div>
             <p className="text-xs text-stone-500">HPP riil / pcs</p>
@@ -130,7 +143,13 @@ export default async function JobOrderDetailPage({
         )}
 
         {jobOrder.status === "berjalan" && canInput && (
-          <AddShipmentForm jobOrderId={jobOrder.id} materials={materials ?? []} />
+          <AddShipmentForm
+            jobOrderId={jobOrder.id}
+            maklonId={jobOrder.maklon_id}
+            maklonName={maklonName}
+            skuName={skuName}
+            materials={materials ?? []}
+          />
         )}
       </div>
     </div>

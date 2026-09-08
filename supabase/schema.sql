@@ -157,6 +157,9 @@ create table job_orders (
   status job_order_status not null default 'berjalan',
   opened_at timestamptz not null default now(),
   closed_at timestamptz,
+  deleted_at timestamptz, -- soft delete only: "deleting" a job order never
+                          -- removes it, just hides it from the app (see
+                          -- soft_delete_job_order() below)
   created_by uuid references profiles(id)
 );
 
@@ -308,8 +311,25 @@ create policy "spv and warehouse_staff can insert job_orders" on job_orders
   for insert with check (current_user_role() in ('spv', 'warehouse_staff'));
 create policy "spv and warehouse_staff can update job_orders" on job_orders
   for update using (current_user_role() in ('spv', 'warehouse_staff'));
-create policy "spv can delete job_orders" on job_orders
-  for delete using (current_user_role() = 'spv');
+-- No delete policy on job_orders on purpose: hard deletes are blocked
+-- entirely. The only way to remove one from view is soft_delete_job_order()
+-- below, which just sets deleted_at — data is never actually lost.
+create or replace function soft_delete_job_order(p_job_order_id uuid)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  if current_user_role() <> 'spv' then
+    raise exception 'Hanya SPV yang bisa menghapus job order.';
+  end if;
+
+  update job_orders set deleted_at = now() where id = p_job_order_id;
+end;
+$$;
+
+revoke all on function soft_delete_job_order(uuid) from public;
+grant execute on function soft_delete_job_order(uuid) to authenticated;
 
 create policy "spv and warehouse_staff can insert shipments" on shipments
   for insert with check (current_user_role() in ('spv', 'warehouse_staff'));

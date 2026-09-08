@@ -74,6 +74,7 @@ export interface StockMovement {
   created_at: string; // stored UTC — format with formatWib() before display
   // joined for display
   master_items?: Pick<MasterItem, "name" | "unit" | "category">;
+  maklon?: Pick<Maklon, "name">;
 }
 
 export interface JobOrder {
@@ -86,6 +87,7 @@ export interface JobOrder {
   status: JobOrderStatus;
   opened_at: string;
   closed_at: string | null;
+  deleted_at: string | null;
   master_items?: Pick<MasterItem, "name">;
   maklon?: Pick<Maklon, "name">;
   shipments?: Shipment[];

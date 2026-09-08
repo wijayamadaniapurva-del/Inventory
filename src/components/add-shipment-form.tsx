@@ -9,9 +9,15 @@ type Line = { materialId: string; qty: string };
 
 export function AddShipmentForm({
   jobOrderId,
+  maklonId,
+  maklonName,
+  skuName,
   materials,
 }: {
   jobOrderId: string;
+  maklonId: string;
+  maklonName: string;
+  skuName: string;
   materials: Pick<MasterItem, "id" | "name" | "unit" | "default_price">[];
 }) {
   const router = useRouter();
@@ -34,6 +40,18 @@ export function AddShipmentForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    const validLines = lines.filter((l) => l.materialId && Number(l.qty) > 0);
+    if (validLines.length === 0) return;
+
+    const summary = validLines
+      .map((l) => {
+        const m = materials.find((mm) => mm.id === l.materialId);
+        return `${m?.name} — ${l.qty} ${m?.unit}`;
+      })
+      .join(", ");
+    if (!window.confirm(`Kirim shipment ke ${maklonName}?\n${summary}`)) return;
+
     setSaving(true);
 
     const { data: shipment, error } = await supabase
@@ -47,19 +65,32 @@ export function AddShipmentForm({
       return;
     }
 
-    const rows = lines
-      .filter((l) => l.materialId && Number(l.qty) > 0)
-      .map((l) => {
-        const material = materials.find((m) => m.id === l.materialId)!;
-        return {
-          shipment_id: shipment.id,
-          material_item_id: l.materialId,
-          qty: Number(l.qty),
-          unit_price: material.default_price, // snapshot at creation time
-        };
-      });
+    const shipmentItemRows = validLines.map((l) => {
+      const material = materials.find((m) => m.id === l.materialId)!;
+      return {
+        shipment_id: shipment.id,
+        material_item_id: l.materialId,
+        qty: Number(l.qty),
+        unit_price: material.default_price, // snapshot at creation time
+      };
+    });
+    await supabase.from("shipment_items").insert(shipmentItemRows);
 
-    await supabase.from("shipment_items").insert(rows);
+    // Also log each material into Riwayat as a transfer to the maklon,
+    // so shipments show up in the stock movement history, not just here.
+    const movementRows = validLines.map((l) => {
+      const material = materials.find((m) => m.id === l.materialId)!;
+      return {
+        item_id: l.materialId,
+        movement_type: "transfer" as const,
+        qty: Number(l.qty),
+        from_location: "gudang_l2" as const,
+        to_location: "maklon" as const,
+        maklon_id: maklonId,
+        note: `Shipment untuk job order ${skuName} — ${maklonName}`,
+      };
+    });
+    await supabase.from("stock_movements").insert(movementRows);
 
     setSaving(false);
     setOpen(false);

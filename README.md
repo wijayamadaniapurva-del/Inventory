@@ -192,6 +192,46 @@ supabase/schema.sql           seluruh skema database
   default, edit saja harga per satuan di Settings → Master item supaya
   hasil kali-nya sesuai.
 
+## Revisi keenam: logo permanen, biaya jasa fleksibel, Riwayat lengkap, export, konfirmasi aksi
+
+- **Logo login sekarang di-embed langsung di kode** (base64, file
+  `src/components/login-logo-data.ts`) — tidak lagi bergantung pada file
+  `public/logo-full.jpg` ter-upload dengan benar, jadi seharusnya tidak
+  akan gagal muncul lagi.
+- **Biaya jasa maklon bisa diisi/diubah kapan saja** dari halaman detail
+  Job Order (klik "(ubah)" di sebelah angkanya), tidak cuma saat job order
+  dibuka pertama kali.
+- **Material yang dikirim ke maklon (Shipment) sekarang otomatis tercatat
+  di Riwayat** sebagai tipe "transfer" ke nama maklon yang jelas (bukan
+  cuma label generik "Maklon"), lengkap dengan catatan job order/SKU mana
+  yang terkait.
+- **Riwayat tidak lagi menampilkan entri ke customer** (penjualan reguler
+  memang seharusnya sinkron dari Scalev terpisah, bukan tercampur di log
+  pergerakan material internal ini).
+- **Export Excel** ditambahkan di halaman Stok (seluruh item semua
+  kategori, termasuk tab "Semua" baru dengan total nilai keseluruhan) dan
+  Riwayat (mengikuti filter yang sedang aktif).
+- **Semua tombol submit sekarang minta konfirmasi OK/Batal** sebelum benar-benar tersimpan (Input Stok, Job Order baru, Tutup Job Order, Tambah Shipment, Master Item, Maklon).
+- **Label "FG" diganti jadi "Finish Good"** di seluruh tampilan.
+- **Tanggal kadaluarsa sekarang juga bisa diisi untuk Finish Good**, tidak
+  cuma bahan baku, di Input Stok.
+- **Soal actual output & stok FG**: menutup Job Order (mengisi actual
+  output) TIDAK otomatis menambah stok FG — itu murni angka untuk
+  perhitungan HPP. Stok FG baru bertambah kalau memang di-input manual
+  lewat Input Stok (Masuk → Finish Good) setelah lolos QC. Belum ada
+  layar QC khusus (poin #2 di bawah), jadi untuk sekarang itu masih
+  langkah manual terpisah — tapi memang tidak ada auto-update yang
+  melewati proses itu.
+- **Soal stok per batch dengan tanggal kadaluarsa berbeda**: saat ini
+  belum dipisah — Stok menjumlahkan semua qty per SKU jadi satu angka
+  total, tidak peduli itu dari batch mana atau kadaluarsa kapan. Detail
+  per-batch tetap tercatat mentah di `stock_movements` (dan muncul
+  terpisah di alert "Mendekati kadaluarsa"), cuma belum ditampilkan
+  sebagai baris stok yang terpisah per batch di halaman Stok. Ini
+  perubahan struktural yang cukup besar (perlu FEFO — first-expired-
+  first-out — untuk tentukan batch mana yang dikurangi duluan saat
+  barang keluar) — didiskusikan dulu di chat sebelum dikerjakan.
+
 ## Yang masih perlu dibangun/disempurnakan
 
 Ini scaffold awal yang sudah bisa dipakai, tapi beberapa bagian sengaja
@@ -203,16 +243,20 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
    resminya dicek.
 2. **QC & terima FG dari maklon** — tabel `fg_batches` sudah ada tapi belum
    ada halaman UI-nya. Ini tempat status Reject dan Belum-BPOM per batch
-   sebaiknya dicatat (terpisah dari tag BPOM per-SKU di Master item).
+   sebaiknya dicatat (terpisah dari tag BPOM per-SKU di Master item), dan
+   idealnya jadi gerbang resmi sebelum stok FG bertambah (saat ini
+   menambah stok FG masih manual lewat Input Stok, tidak lewat proses QC
+   terstruktur).
 3. **Safety stock formula** — baru tersimpan sebagai `app_settings` (JSON) dan
    kolom `safety_stock_qty` per item; logika hitung otomatis dari formula
    belum diimplementasikan, saat ini nilainya harus diisi manual per item.
-4. **RLS per role** — saat ini semua user yang login bisa baca & tulis semua
-   tabel. Perlu dipersempit sesuai role (mis. Finance read-only, Warehouse
-   Staff hanya bisa nulis ke `stock_movements`).
-5. **Modul Nilai Stok & Rekap Bulanan** — belum dibuat sebagai halaman
-   terpisah; saat ini datanya sudah bisa dihitung dari view `v_current_stock`
-   dan `stock_movements`, tinggal dibuatkan tampilan bulanannya.
+4. **RLS per role** — sudah diperketat untuk Job Order/Shipment (lihat
+   revisi kelima), tabel lain (master_items, maklon, app_settings) masih
+   permisif untuk semua user yang login; persempit lagi kalau perlu.
+5. **Modul Rekap Bulanan** — halaman Stok sudah ada (dengan export Excel),
+   tapi rekap per-bulan (bukan cuma snapshot saat ini) belum dibuat.
 6. **Print surat jalan** masih HTML sederhana (`window.print()`), belum
    PDF generation.
-7. **Ikon PWA** — `manifest.json` belum diisi icon (butuh logo PURVU).
+7. **Ikon PWA** — sudah pakai logo AWM (lihat revisi keempat).
+8. **Stok per batch/kadaluarsa** — saat ini diagregasi per SKU saja, belum
+   dipisah per batch/tanggal kadaluarsa (lihat revisi keenam untuk detail).

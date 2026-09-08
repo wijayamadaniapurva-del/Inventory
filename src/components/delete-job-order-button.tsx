@@ -13,12 +13,18 @@ export function DeleteJobOrderButton({ jobOrderId, label }: { jobOrderId: string
     e.preventDefault();
     e.stopPropagation();
 
-    const confirmed = window.confirm(`Hapus job order "${label}"? Semua shipment di dalamnya ikut terhapus. Tindakan ini tidak bisa dibatalkan.`);
+    const confirmed = window.confirm(`Hapus job order "${label}"? Job order ini akan hilang dari daftar (datanya tetap tersimpan, bisa dipulihkan lewat Supabase kalau perlu).`);
     if (!confirmed) return;
 
     setDeleting(true);
-    await supabase.from("job_orders").delete().eq("id", jobOrderId);
+    const { error } = await supabase.rpc("soft_delete_job_order", { p_job_order_id: jobOrderId });
     setDeleting(false);
+
+    if (error) {
+      alert("Gagal menghapus: " + error.message);
+      return;
+    }
+
     router.refresh();
   }
 

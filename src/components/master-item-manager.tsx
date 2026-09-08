@@ -28,6 +28,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
+    if (!window.confirm(`Tambah item "${newName.trim()}" ke kategori ${CATEGORY_LABEL[newCategory]}?`)) return;
     setSaving(true);
 
     await supabase.from("master_items").insert({
@@ -227,7 +228,10 @@ function ItemRow({
           className="!h-8"
         />
         <button
-          onClick={() => onSave({ name, unit, bpom_tag: isFg ? bpom : null, default_price: Number(price || 0) })}
+          onClick={() => {
+            if (!window.confirm(`Simpan perubahan item "${name}"?`)) return;
+            onSave({ name, unit, bpom_tag: isFg ? bpom : null, default_price: Number(price || 0) });
+          }}
           className="!h-8 !w-8 !border-0 !p-0 text-accent-600"
           title="Simpan"
         >

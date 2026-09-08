@@ -18,6 +18,7 @@ export default async function JobOrderListPage() {
     supabase
       .from("job_orders")
       .select("id, target_output, actual_output, status, opened_at, master_items(name), maklon(name)")
+      .is("deleted_at", null)
       .order("opened_at", { ascending: false })
       .returns<JobOrder[]>(),
     supabase.from("master_items").select("id, name").eq("category", "fg").eq("is_active", true).returns<Pick<MasterItem, "id" | "name">[]>(),

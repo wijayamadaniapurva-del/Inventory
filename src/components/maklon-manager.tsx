@@ -20,6 +20,7 @@ export function MaklonManager({ initialMaklon }: { initialMaklon: Maklon[] }) {
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
+    if (!window.confirm(`Tambah maklon "${newName.trim()}"?`)) return;
     setSaving(true);
 
     await supabase.from("maklon").insert({
@@ -138,7 +139,10 @@ function MaklonRow({
         <input type="checkbox" checked={ethanol} onChange={(e) => setEthanol(e.target.checked)} className="!h-4 !w-4 justify-self-start" />
         <input type="checkbox" checked={bibit} onChange={(e) => setBibit(e.target.checked)} className="!h-4 !w-4 justify-self-start" />
         <button
-          onClick={() => onSave({ name, needs_ethanol: ethanol, needs_bibit: bibit })}
+          onClick={() => {
+            if (!window.confirm(`Simpan perubahan maklon "${name}"?`)) return;
+            onSave({ name, needs_ethanol: ethanol, needs_bibit: bibit });
+          }}
           className="!h-8 !w-8 !border-0 !p-0 text-accent-600"
           title="Simpan"
         >

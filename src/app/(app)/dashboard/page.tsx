@@ -19,6 +19,7 @@ export default async function DashboardPage() {
       .from("job_orders")
       .select("id, target_output, actual_output, status, master_items(name), maklon(name)")
       .eq("status", "berjalan")
+      .is("deleted_at", null)
       .returns<JobOrder[]>(),
     supabase
       .from("fg_batches")

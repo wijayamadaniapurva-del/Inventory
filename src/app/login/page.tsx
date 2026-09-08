@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import { LOGIN_LOGO_DATA_URI } from "@/components/login-logo-data";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -49,14 +49,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-stone-50 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <Image
-            src="/logo-full.jpg"
-            alt="PT Apurva Wijaya Madani"
-            width={280}
-            height={90}
-            priority
-            className="mb-3"
-          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={LOGIN_LOGO_DATA_URI} alt="PT Apurva Wijaya Madani" width={280} height={90} className="mb-3" />
           <p className="text-sm font-medium text-stone-700">PURVU Inventory</p>
           <p className="text-xs text-stone-500">Masuk dengan akun yang sudah didaftarkan admin.</p>
         </div>

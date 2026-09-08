@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatWib, formatQty, LOCATION_LABEL, CATEGORY_LABEL } from "@/lib/utils";
 import type { StockMovement } from "@/lib/types";
+import { ExportExcelButton } from "@/components/export-excel-button";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,12 @@ const MOVEMENT_COLOR: Record<string, string> = {
   keluar: "text-red-600",
   transfer: "text-accent-600",
 };
+
+function locationLabel(loc: string | null, maklonName?: string | null) {
+  if (!loc) return "-";
+  if (loc === "maklon" && maklonName) return maklonName;
+  return LOCATION_LABEL[loc] ?? loc;
+}
 
 export default async function RiwayatPage({
   searchParams,
@@ -20,9 +27,9 @@ export default async function RiwayatPage({
 
   let query = supabase
     .from("stock_movements")
-    .select("id, movement_type, qty, from_location, to_location, created_at, master_items(name, unit, category)")
+    .select("id, movement_type, qty, from_location, to_location, created_at, master_items(name, unit, category), maklon(name)")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .limit(200);
 
   if (params.kategori) {
     query = query.eq("master_items.category", params.kategori);
@@ -38,15 +45,35 @@ export default async function RiwayatPage({
 
   const { data: movements } = await query.returns<StockMovement[]>();
 
+  // Outbound-to-customer isn't tracked manually here (regular sales sync
+  // from Scalev separately) — always excluded from this internal log.
+  const withoutCustomer = (movements ?? []).filter(
+    (m) => m.from_location !== "customer" && m.to_location !== "customer"
+  );
+
   const filtered = params.q
-    ? (movements ?? []).filter((m) =>
-        m.master_items?.name.toLowerCase().includes(params.q!.toLowerCase())
-      )
-    : movements ?? [];
+    ? withoutCustomer.filter((m) => m.master_items?.name.toLowerCase().includes(params.q!.toLowerCase()))
+    : withoutCustomer;
+
+  const exportRows = filtered.map((m) => ({
+    Tanggal: formatWib(m.created_at),
+    Tipe: m.movement_type,
+    Item: m.master_items?.name ?? "-",
+    Qty: m.qty,
+    Satuan: m.master_items?.unit ?? "-",
+    Lokasi:
+      m.movement_type === "transfer"
+        ? `${locationLabel(m.from_location, m.maklon?.name)} -> ${locationLabel(m.to_location, m.maklon?.name)}`
+        : locationLabel(m.from_location || m.to_location, m.maklon?.name),
+  }));
 
   return (
     <div className="space-y-4">
-      <h1 className="page-title">Riwayat</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="page-title">Riwayat</h1>
+        <ExportExcelButton rows={exportRows} filename="riwayat-stok.xlsx" sheetName="Riwayat" />
+      </div>
+
       <form className="flex flex-wrap gap-2" method="get">
         <select name="kategori" defaultValue={params.kategori ?? ""} className="w-40">
           <option value="">Semua kategori</option>
@@ -58,11 +85,13 @@ export default async function RiwayatPage({
         </select>
         <select name="lokasi" defaultValue={params.lokasi ?? ""} className="w-44">
           <option value="">Semua lokasi</option>
-          {Object.entries(LOCATION_LABEL).map(([k, label]) => (
-            <option key={k} value={k}>
-              {label}
-            </option>
-          ))}
+          {Object.entries(LOCATION_LABEL)
+            .filter(([k]) => k !== "customer")
+            .map(([k, label]) => (
+              <option key={k} value={k}>
+                {label}
+              </option>
+            ))}
         </select>
         <input type="date" name="tanggal" defaultValue={params.tanggal ?? ""} className="w-40" />
         <input
@@ -99,8 +128,8 @@ export default async function RiwayatPage({
                 </td>
                 <td className="px-4 py-2">
                   {m.movement_type === "transfer"
-                    ? `${LOCATION_LABEL[m.from_location ?? ""] ?? "-"} → ${LOCATION_LABEL[m.to_location ?? ""] ?? "-"}`
-                    : LOCATION_LABEL[(m.from_location || m.to_location) ?? ""] ?? "-"}
+                    ? `${locationLabel(m.from_location, m.maklon?.name)} → ${locationLabel(m.to_location, m.maklon?.name)}`
+                    : locationLabel(m.from_location || m.to_location, m.maklon?.name)}
                 </td>
               </tr>
             ))}

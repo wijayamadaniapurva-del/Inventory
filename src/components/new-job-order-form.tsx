@@ -23,6 +23,10 @@ export function NewJobOrderForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const skuLabel = fgItems.find((i) => i.id === skuId)?.name ?? "";
+    const maklonLabel = maklonList.find((m) => m.id === maklonId)?.name ?? "";
+    if (!window.confirm(`Buka job order baru: ${skuLabel} — ${maklonLabel}, target ${target} pcs?`)) return;
+
     setSaving(true);
 
     const { error } = await supabase.from("job_orders").insert({
