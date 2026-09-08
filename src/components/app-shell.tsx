@@ -24,7 +24,7 @@ const LINKS: { href: string; label: string; icon: typeof LayoutDashboard; roles:
   { href: "/stok", label: "Stok", icon: Boxes, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/job-order", label: "Job order & shipment", icon: Truck, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/riwayat", label: "Riwayat", icon: History, roles: ["owner", "spv", "warehouse_staff", "finance"] },
-  { href: "/settings/master-item", label: "Settings", icon: Settings, roles: ["spv"] },
+  { href: "/settings/master-item", label: "Master Data", icon: Settings, roles: ["spv"] },
 ];
 
 const ROLE_LABEL: Record<UserRole, string> = {

@@ -4,18 +4,19 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCurrency } from "@/lib/utils";
+import { CurrencyInput } from "@/components/currency-input";
 
 export function EditServiceFee({ jobOrderId, value }: { jobOrderId: string; value: number }) {
   const router = useRouter();
   const supabase = createClient();
   const [editing, setEditing] = useState(false);
-  const [fee, setFee] = useState(String(value));
+  const [fee, setFee] = useState(value);
   const [saving, setSaving] = useState(false);
 
   async function handleSave() {
-    if (!window.confirm(`Simpan biaya jasa maklon sebesar ${formatCurrency(Number(fee || 0))}?`)) return;
+    if (!window.confirm(`Simpan biaya jasa maklon sebesar ${formatCurrency(fee)}?`)) return;
     setSaving(true);
-    await supabase.from("job_orders").update({ service_fee: Number(fee || 0) }).eq("id", jobOrderId);
+    await supabase.from("job_orders").update({ service_fee: fee }).eq("id", jobOrderId);
     setSaving(false);
     setEditing(false);
     router.refresh();
@@ -24,14 +25,7 @@ export function EditServiceFee({ jobOrderId, value }: { jobOrderId: string; valu
   if (editing) {
     return (
       <div className="flex items-center gap-1">
-        <input
-          type="number"
-          min="0"
-          value={fee}
-          onChange={(e) => setFee(e.target.value)}
-          className="!h-7 w-28 text-sm"
-          autoFocus
-        />
+        <CurrencyInput value={fee} onChange={setFee} className="!h-7 w-32 text-sm" autoFocus />
         <button onClick={handleSave} disabled={saving} className="!h-7 !w-7 !border-0 !p-0 text-accent-600" title="Simpan">
           ✓
         </button>

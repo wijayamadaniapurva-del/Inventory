@@ -16,7 +16,7 @@ export default async function MaklonSettingsPage() {
 
   return (
     <div>
-      <h1 className="page-title">Settings</h1>
+      <h1 className="page-title">Master Data</h1>
       <p className="mb-4 mt-1 text-sm text-stone-500">Maklon</p>
       <SettingsTabs />
       <MaklonManager initialMaklon={maklonList ?? []} />

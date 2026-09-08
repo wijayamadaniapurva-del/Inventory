@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { CurrencyInput } from "@/components/currency-input";
 import type { Maklon, MasterItem } from "@/lib/types";
 
 export function NewJobOrderForm({
@@ -18,7 +19,7 @@ export function NewJobOrderForm({
   const [skuId, setSkuId] = useState(fgItems[0]?.id ?? "");
   const [maklonId, setMaklonId] = useState(maklonList[0]?.id ?? "");
   const [target, setTarget] = useState("");
-  const [fee, setFee] = useState("");
+  const [fee, setFee] = useState(0);
   const [saving, setSaving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -33,14 +34,14 @@ export function NewJobOrderForm({
       sku_item_id: skuId,
       maklon_id: maklonId,
       target_output: Number(target),
-      service_fee: Number(fee || 0),
+      service_fee: fee,
     });
 
     setSaving(false);
     if (!error) {
       setOpen(false);
       setTarget("");
-      setFee("");
+      setFee(0);
       router.refresh();
     }
   }
@@ -81,8 +82,8 @@ export function NewJobOrderForm({
           <input type="number" min="1" required value={target} onChange={(e) => setTarget(e.target.value)} className="w-full" />
         </div>
         <div className="flex-1">
-          <label className="mb-1 block text-sm text-stone-600">Biaya jasa maklon</label>
-          <input type="number" min="0" value={fee} onChange={(e) => setFee(e.target.value)} className="w-full" />
+          <label className="mb-1 block text-sm text-stone-600">Biaya jasa maklon (opsional, bisa diisi belakangan)</label>
+          <CurrencyInput value={fee} onChange={setFee} />
         </div>
       </div>
       <div className="flex gap-2">

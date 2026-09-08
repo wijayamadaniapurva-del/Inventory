@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { BpomStatus, ItemCategory, ItemUnit, MasterItem } from "@/lib/types";
 import { CATEGORY_LABEL, formatCurrency } from "@/lib/utils";
+import { CurrencyInput } from "@/components/currency-input";
 
 const CATEGORIES: ItemCategory[] = ["bahan_baku", "packaging", "fg"];
 const UNITS: ItemUnit[] = ["liter", "pcs", "meter"];
@@ -20,7 +21,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
   const [newCategory, setNewCategory] = useState<ItemCategory>("bahan_baku");
   const [newUnit, setNewUnit] = useState<ItemUnit>("liter");
   const [newBpom, setNewBpom] = useState<BpomStatus>("bpom");
-  const [newPrice, setNewPrice] = useState("");
+  const [newPrice, setNewPrice] = useState(0);
   const [saving, setSaving] = useState(false);
 
   const items = initialItems.filter((i) => i.category === category && i.is_active);
@@ -36,13 +37,13 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
       category: newCategory,
       unit: newUnit,
       bpom_tag: newCategory === "fg" ? newBpom : null,
-      default_price: Number(newPrice || 0),
+      default_price: newPrice,
     });
 
     setSaving(false);
     setShowAddForm(false);
     setNewName("");
-    setNewPrice("");
+    setNewPrice(0);
     router.refresh();
   }
 
@@ -142,14 +143,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
             </div>
             <div className="flex-1">
               <label className="mb-1 block text-sm text-stone-600">Harga default</label>
-              <input
-                type="number"
-                min="0"
-                placeholder="0"
-                value={newPrice}
-                onChange={(e) => setNewPrice(e.target.value)}
-                className="w-full"
-              />
+              <CurrencyInput value={newPrice} onChange={setNewPrice} />
             </div>
           </div>
           {newCategory === "fg" && (
@@ -199,7 +193,7 @@ function ItemRow({
   const [name, setName] = useState(item.name);
   const [unit, setUnit] = useState<ItemUnit>(item.unit);
   const [bpom, setBpom] = useState<BpomStatus>(item.bpom_tag ?? "bpom");
-  const [price, setPrice] = useState(String(item.default_price));
+  const [price, setPrice] = useState(item.default_price);
 
   const cols = isFg ? "1fr 60px 90px 110px 32px 32px" : "1fr 70px 110px 32px 32px";
 
@@ -220,17 +214,11 @@ function ItemRow({
             <option value="non_bpom">Non-BPOM</option>
           </select>
         )}
-        <input
-          type="number"
-          min="0"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          className="!h-8"
-        />
+        <CurrencyInput value={price} onChange={setPrice} className="!h-8 text-xs" />
         <button
           onClick={() => {
             if (!window.confirm(`Simpan perubahan item "${name}"?`)) return;
-            onSave({ name, unit, bpom_tag: isFg ? bpom : null, default_price: Number(price || 0) });
+            onSave({ name, unit, bpom_tag: isFg ? bpom : null, default_price: price });
           }}
           className="!h-8 !w-8 !border-0 !p-0 text-accent-600"
           title="Simpan"

@@ -260,3 +260,24 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
 7. **Ikon PWA** — sudah pakai logo AWM (lihat revisi keempat).
 8. **Stok per batch/kadaluarsa** — saat ini diagregasi per SKU saja, belum
    dipisah per batch/tanggal kadaluarsa (lihat revisi keenam untuk detail).
+
+## Revisi ketujuh: logo permanen transparan, format Rupiah, Master Data
+
+- **Logo login sekarang transparan juga** (background putihnya dihilangkan
+  dengan teknik sama seperti logo icon), jadi tidak ada lagi kotak putih
+  yang kelihatan menempel di halaman login.
+- Teks "Masuk dengan akun yang sudah didaftarkan admin." dihapus dari
+  halaman login.
+- **Semua field harga/biaya sekarang pakai format Rupiah dengan pemisah
+  ribuan** (mis. "Rp 3.000.000", bukan "3000000") — komponen baru
+  `components/currency-input.tsx`, dipakai di Biaya Jasa Maklon (buka job
+  order & ubah belakangan) dan Harga di Master Data.
+- **"Settings" diganti nama jadi "Master Data"** — karena isinya memang
+  murni data master (item & maklon), bukan pengaturan aplikasi. Kalau
+  nanti ada fitur pengaturan sungguhan (mis. rumus safety stock), bisa
+  ditambah sebagai bagian terpisah nanti.
+- **Tag BPOM/Non-BPOM**: ini sebenarnya sudah ada sejak beberapa revisi
+  lalu, di Master Data → tab "Finish Good" → kolom "Tag BPOM" (bisa
+  diedit langsung per SKU, dan ada juga saat tambah item baru). Kemungkinan
+  belum ketemu karena menu Master Data cuma muncul untuk role SPV — kalau
+  testing pakai role lain, memang tidak akan kelihatan di sidebar.

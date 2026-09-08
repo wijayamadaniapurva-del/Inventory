@@ -52,7 +52,6 @@ export default function LoginPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={LOGIN_LOGO_DATA_URI} alt="PT Apurva Wijaya Madani" width={280} height={90} className="mb-3" />
           <p className="text-sm font-medium text-stone-700">PURVU Inventory</p>
-          <p className="text-xs text-stone-500">Masuk dengan akun yang sudah didaftarkan admin.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="card space-y-4">
