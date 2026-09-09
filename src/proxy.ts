@@ -4,6 +4,13 @@ import { NextResponse, type NextRequest } from "next/server";
 // Next.js 16 renamed middleware.ts -> proxy.ts (same request-interception
 // behaviour, now Node.js runtime by default, clearer naming).
 export default async function proxy(request: NextRequest) {
+  // API routes handle their own auth (e.g. the cron route checks a
+  // bearer secret) — they never have a logged-in browser session, so
+  // skip the redirect-to-login logic for them entirely.
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

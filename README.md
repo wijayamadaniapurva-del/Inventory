@@ -310,3 +310,26 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
   menampilkan 8 input terbaru), dan date picker tanggal kadaluarsa diganti
   jadi komponen custom (`components/date-picker.tsx`) yang senada dengan
   dropdown/input lain di form yang sama — bukan lagi widget bawaan browser.
+
+## Revisi kesembilan: rekap bulanan otomatis (cron)
+
+- **Setiap tanggal 1, sistem otomatis merekam snapshot nilai stok bulan
+  sebelumnya** lewat Vercel Cron (`vercel.json`, jadwal `0 17 1 * *` UTC
+  = sekitar tengah malam WIB tanggal 1) yang memanggil
+  `src/app/api/cron/monthly-snapshot`. Tersimpan di tabel baru
+  `monthly_stock_snapshots` (satu baris per item per bulan: qty, harga,
+  nilai — nama item disalin apa adanya saat itu, jadi tidak berubah
+  walau nanti item di-rename/diarsipkan).
+- Cron route ini pakai **Supabase service role key** (bukan anon key),
+  karena cron tidak pernah login sebagai user — makanya ada 2 env var
+  baru yang WAJIB ditambahkan di Vercel (lihat instruksi di chat):
+  `SUPABASE_SERVICE_ROLE_KEY` dan `CRON_SECRET`. `CRON_SECRET` yang
+  memverifikasi bahwa permintaan itu benar dari Vercel Cron, bukan dari
+  sembarang orang yang tahu URL-nya.
+- **Halaman baru Stok → Rekap Bulanan** — pilih bulan dari dropdown,
+  lihat rincian per item, export ke Excel. Muncul kosong sampai cron
+  pertama kali jalan (tanggal 1 bulan berikutnya) — untuk data bulan-
+  bulan sebelumnya yang sudah lewat, tidak bisa direkonstruksi otomatis
+  karena stok historisnya tidak tercatat sebagai snapshot.
+- `src/proxy.ts` disesuaikan supaya route di bawah `/api/*` tidak ikut
+  diarahkan ke halaman login (cron tidak punya sesi login sama sekali).

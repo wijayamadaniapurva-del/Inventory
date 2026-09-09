@@ -234,6 +234,31 @@ create table scalev_sync_log (
 );
 
 -- ---------------------------------------------------------------------
+-- Monthly stock value snapshot — captured automatically by a Vercel Cron
+-- job on the 1st of each month (see src/app/api/cron/monthly-snapshot),
+-- representing closing stock for the month that just ended. Written
+-- with the Supabase service role key (cron has no logged-in user), so
+-- it bypasses RLS — that's why there's no insert/update policy for it
+-- below, only a read policy for browsing in the app.
+-- ---------------------------------------------------------------------
+create table monthly_stock_snapshots (
+  id uuid primary key default gen_random_uuid(),
+  snapshot_month date not null, -- first day of the month this snapshot represents
+  item_id uuid not null references master_items(id),
+  item_name text not null, -- copied at snapshot time so a later item rename/archive doesn't rewrite history
+  category item_category not null,
+  unit item_unit not null,
+  qty_on_hand numeric(14, 3) not null,
+  default_price numeric(14, 2) not null,
+  value numeric(14, 2) not null,
+  created_at timestamptz not null default now(),
+  unique (snapshot_month, item_id)
+);
+
+alter table monthly_stock_snapshots enable row level security;
+create policy "authenticated can read" on monthly_stock_snapshots for select using (auth.role() = 'authenticated');
+
+-- ---------------------------------------------------------------------
 -- Current stock on hand per item = masuk - keluar. Transfers move
 -- material between locations but don't change total company-wide
 -- qty on hand, so they're excluded from this running total (Riwayat

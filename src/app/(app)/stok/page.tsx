@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentStockRow } from "@/lib/types";
 import { StockTable } from "@/components/stock-table";
@@ -16,7 +17,12 @@ export default async function StokPage() {
 
   return (
     <div>
-      <h1 className="page-title mb-4">Stok</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="page-title">Stok</h1>
+        <Link href="/stok/rekap-bulanan" className="text-sm text-accent-600">
+          Rekap Bulanan →
+        </Link>
+      </div>
       <StockTable rows={rows ?? []} bufferPercent={bufferPercent} />
     </div>
   );
