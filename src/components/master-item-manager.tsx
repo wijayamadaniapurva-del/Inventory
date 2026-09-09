@@ -53,8 +53,21 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
     router.refresh();
   }
 
-  async function handleDeactivate(item: MasterItem) {
-    await supabase.from("master_items").update({ is_active: false }).eq("id", item.id);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  async function handleDelete(item: MasterItem) {
+    // Try a real delete first — foreign keys will reject it if this item
+    // is referenced by any stock movement, shipment, job order, or BOM.
+    // Only when that happens do we fall back to archiving, so items that
+    // were never actually used can be removed for good.
+    const { error } = await supabase.from("master_items").delete().eq("id", item.id);
+
+    if (error) {
+      await supabase.from("master_items").update({ is_active: false }).eq("id", item.id);
+      setStatusMsg(`"${item.name}" sudah pernah dipakai di transaksi, jadi diarsipkan (bukan dihapus permanen).`);
+    } else {
+      setStatusMsg(`"${item.name}" dihapus permanen.`);
+    }
     router.refresh();
   }
 
@@ -71,6 +84,8 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
           </button>
         ))}
       </div>
+
+      {statusMsg && <p className="mb-3 text-sm text-stone-500">{statusMsg}</p>}
 
       <div className="card !p-0 mb-3 overflow-hidden">
         <div
@@ -94,7 +109,10 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
             onEdit={() => setEditingId(item.id)}
             onCancel={() => setEditingId(null)}
             onSave={(patch) => handleUpdate(item, patch)}
-            onDelete={() => handleDeactivate(item)}
+            onDelete={() => {
+              if (!window.confirm(`Hapus item "${item.name}"? Kalau item ini belum pernah dipakai di transaksi apa pun, akan dihapus permanen. Kalau sudah pernah dipakai, akan diarsipkan (tetap tersimpan untuk data lama, hilang dari pilihan baru).`)) return;
+              handleDelete(item);
+            }}
           />
         ))}
 

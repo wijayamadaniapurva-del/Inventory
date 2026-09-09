@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatQty } from "@/lib/utils";
+import { computeSafetyStock } from "@/lib/safety-stock";
 import type { CurrentStockRow, JobOrder } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +14,8 @@ function groupValue(rows: CurrentStockRow[], predicate: (r: CurrentStockRow) => 
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const [{ data: stockRows }, { data: runningOrders }, { data: fgBatches }, { data: expiringMaterials }] = await Promise.all([
-    supabase.from("v_current_stock").select("*").returns<CurrentStockRow[]>(),
+  const [{ data: stockRows }, { data: runningOrders }, { data: fgBatches }, { data: expiringMaterials }, { data: bufferSetting }] = await Promise.all([
+    supabase.from("v_current_stock").select("*").eq("is_active", true).returns<CurrentStockRow[]>(),
     supabase
       .from("job_orders")
       .select("id, target_output, actual_output, status, master_items(name), maklon(name)")
@@ -34,7 +35,10 @@ export default async function DashboardPage() {
       .not("expiry_date", "is", null)
       .lte("expiry_date", new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10))
       .order("expiry_date", { ascending: true }),
+    supabase.from("app_settings").select("value").eq("key", "safety_stock_buffer_percent").single(),
   ]);
+
+  const bufferPercent = (bufferSetting?.value as { percent?: number } | null)?.percent ?? 20;
 
   const expiringItems = [
     ...(fgBatches ?? []).map((b) => ({ id: `fg-${b.id}`, name: (b.master_items as any)?.name ?? "-", expiry_date: b.expiry_date as string })),
@@ -50,9 +54,10 @@ export default async function DashboardPage() {
     { label: "Nilai material lain", value: groupValue(rows, (r) => r.category === "packaging") },
   ];
 
-  const belowSafetyStock = rows.filter(
-    (r) => r.safety_stock_qty !== null && r.qty_on_hand < r.safety_stock_qty
-  );
+  const belowSafetyStock = rows.filter((r) => {
+    const threshold = computeSafetyStock(r.avg_daily_usage, r.lead_time_days, bufferPercent);
+    return threshold !== null && r.qty_on_hand < threshold;
+  });
   const hasExpiring = expiringItems.length > 0;
   const hasRunningOrders = !!runningOrders && runningOrders.length > 0;
 

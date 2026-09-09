@@ -92,7 +92,9 @@ create table master_items (
   unit item_unit not null,
   bpom_tag bpom_status,
   default_price numeric(14, 2) not null default 0,
-  safety_stock_qty numeric(14, 3), -- threshold below which Dashboard flags this item; null = no alert
+  safety_stock_qty numeric(14, 3), -- deprecated: superseded by the avg_daily_usage x lead_time_days x buffer formula below; kept for backward compatibility, no longer written to by the app
+  avg_daily_usage numeric(14, 3), -- for safety stock formula: average qty used per day
+  lead_time_days integer, -- for safety stock formula: days from shipping to maklon until FG is back (or supplier lead time for materials)
   scalev_product_id text, -- filled in once Scalev integration is wired up
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
@@ -209,8 +211,12 @@ create table app_settings (
 );
 
 insert into app_settings (key, value) values
-  ('safety_stock_formula', '{"type": "days_of_use", "days": 14}'),
+  ('safety_stock_buffer_percent', '{"percent": 20}'),
   ('output_variance_tolerance', '{"enabled": false}');
+  -- Safety stock per item = avg_daily_usage x lead_time_days x (1 + buffer_percent/100).
+  -- buffer_percent is global (one setting for all items); avg_daily_usage and
+  -- lead_time_days are per-item (columns on master_items), set from
+  -- Master Data -> Safety Stock (SPV only).
   -- tolerance intentionally disabled: owner confirmed there is no
   -- acceptable variance — every shortfall is shown as-is, unflagged
   -- by a threshold.
@@ -232,6 +238,9 @@ create table scalev_sync_log (
 -- material between locations but don't change total company-wide
 -- qty on hand, so they're excluded from this running total (Riwayat
 -- still logs them individually, filterable by location).
+-- is_active is included so callers can exclude archived items (fixes
+-- the bug where a deactivated item's stock kept showing on the Stok
+-- page — the view previously didn't expose this flag at all).
 -- NOTE: this does not yet model bahan-baku consumption into FG output
 -- (that's tracked via Job Order HPP instead) — refine if you need a
 -- live WIP/BOM-driven stock count later.
@@ -244,7 +253,9 @@ select
   mi.unit,
   mi.bpom_tag,
   mi.default_price,
-  mi.safety_stock_qty,
+  mi.avg_daily_usage,
+  mi.lead_time_days,
+  mi.is_active,
   coalesce(sum(case
     when sm.movement_type = 'masuk' then sm.qty
     when sm.movement_type = 'keluar' then -sm.qty
@@ -252,7 +263,7 @@ select
   end), 0) as qty_on_hand
 from master_items mi
 left join stock_movements sm on sm.item_id = mi.id
-group by mi.id, mi.name, mi.category, mi.unit, mi.bpom_tag, mi.default_price, mi.safety_stock_qty;
+group by mi.id, mi.name, mi.category, mi.unit, mi.bpom_tag, mi.default_price, mi.avg_daily_usage, mi.lead_time_days, mi.is_active;
 
 -- =========================================================================
 -- Row Level Security — starting point only.
@@ -330,6 +341,75 @@ $$;
 
 revoke all on function soft_delete_job_order(uuid) from public;
 grant execute on function soft_delete_job_order(uuid) to authenticated;
+
+-- Creates a Shipment + its line items + the matching Riwayat entries in
+-- one atomic transaction. Validates server-side that at least one
+-- material line was provided — the UI also disables the submit button
+-- for this, but this is the real enforcement (can't be bypassed by
+-- calling the API directly).
+create or replace function create_shipment(p_job_order_id uuid, p_lines jsonb)
+returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  v_shipment_id uuid;
+  v_line jsonb;
+  v_material_id uuid;
+  v_qty numeric;
+  v_price numeric;
+  v_maklon_id uuid;
+  v_sku_name text;
+  v_maklon_name text;
+begin
+  if current_user_role() not in ('spv', 'warehouse_staff') then
+    raise exception 'Tidak punya akses untuk menambah shipment.';
+  end if;
+
+  if p_lines is null or jsonb_array_length(p_lines) = 0 then
+    raise exception 'Tambahkan minimal 1 material sebelum menyimpan.';
+  end if;
+
+  select jo.maklon_id, mi.name, m.name
+    into v_maklon_id, v_sku_name, v_maklon_name
+  from job_orders jo
+  join master_items mi on mi.id = jo.sku_item_id
+  join maklon m on m.id = jo.maklon_id
+  where jo.id = p_job_order_id;
+
+  if v_maklon_id is null then
+    raise exception 'Job order tidak ditemukan.';
+  end if;
+
+  insert into shipments (job_order_id) values (p_job_order_id) returning id into v_shipment_id;
+
+  for v_line in select * from jsonb_array_elements(p_lines)
+  loop
+    v_material_id := (v_line->>'material_item_id')::uuid;
+    v_qty := (v_line->>'qty')::numeric;
+
+    if v_material_id is null or v_qty is null or v_qty <= 0 then
+      raise exception 'Setiap baris material harus punya qty lebih dari 0.';
+    end if;
+
+    select default_price into v_price from master_items where id = v_material_id;
+
+    insert into shipment_items (shipment_id, material_item_id, qty, unit_price)
+    values (v_shipment_id, v_material_id, v_qty, coalesce(v_price, 0));
+
+    insert into stock_movements (item_id, movement_type, qty, from_location, to_location, maklon_id, note)
+    values (
+      v_material_id, 'transfer', v_qty, 'gudang_l2', 'maklon', v_maklon_id,
+      'Shipment untuk job order ' || v_sku_name || ' — ' || v_maklon_name
+    );
+  end loop;
+
+  return v_shipment_id;
+end;
+$$;
+
+revoke all on function create_shipment(uuid, jsonb) from public;
+grant execute on function create_shipment(uuid, jsonb) to authenticated;
 
 create policy "spv and warehouse_staff can insert shipments" on shipments
   for insert with check (current_user_role() in ('spv', 'warehouse_staff'));

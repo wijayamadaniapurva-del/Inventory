@@ -3,12 +3,13 @@
 import { useState } from "react";
 import type { CurrentStockRow, ItemCategory } from "@/lib/types";
 import { CATEGORY_LABEL, formatCurrency, formatQty } from "@/lib/utils";
+import { computeSafetyStock } from "@/lib/safety-stock";
 import { ExportExcelButton } from "@/components/export-excel-button";
 
 const CATEGORIES: ItemCategory[] = ["bahan_baku", "packaging", "fg"];
 type TabValue = ItemCategory | "all";
 
-export function StockTable({ rows }: { rows: CurrentStockRow[] }) {
+export function StockTable({ rows, bufferPercent }: { rows: CurrentStockRow[]; bufferPercent: number }) {
   const [tab, setTab] = useState<TabValue>("all");
   const isFg = tab === "fg";
   const isAll = tab === "all";
@@ -73,7 +74,7 @@ export function StockTable({ rows }: { rows: CurrentStockRow[] }) {
           <div key={r.item_id} className="grid items-center gap-2 border-b border-stone-100 px-4 py-2.5 text-sm last:border-0" style={{ gridTemplateColumns: cols }}>
             {isAll && <span className="text-stone-500">{CATEGORY_LABEL[r.category]}</span>}
             <span>{r.name}</span>
-            <span className={"figure " + (r.safety_stock_qty !== null && r.qty_on_hand < r.safety_stock_qty ? "text-red-600 font-medium" : "")}>
+            <span className={"figure " + (computeSafetyStock(r.avg_daily_usage, r.lead_time_days, bufferPercent) !== null && r.qty_on_hand < (computeSafetyStock(r.avg_daily_usage, r.lead_time_days, bufferPercent) as number) ? "text-red-600 font-medium" : "")}>
               {formatQty(r.qty_on_hand, r.unit)}
             </span>
             {isFg && r.category === "fg" && (

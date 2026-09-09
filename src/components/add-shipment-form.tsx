@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { MasterItem } from "@/lib/types";
@@ -9,15 +9,11 @@ type Line = { materialId: string; qty: string };
 
 export function AddShipmentForm({
   jobOrderId,
-  maklonId,
   maklonName,
-  skuName,
   materials,
 }: {
   jobOrderId: string;
-  maklonId: string;
   maklonName: string;
-  skuName: string;
   materials: Pick<MasterItem, "id" | "name" | "unit" | "default_price">[];
 }) {
   const router = useRouter();
@@ -25,6 +21,13 @@ export function AddShipmentForm({
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<Line[]>([{ materialId: materials[0]?.id ?? "", qty: "" }]);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const validLines = useMemo(
+    () => lines.filter((l) => l.materialId && Number(l.qty) > 0),
+    [lines]
+  );
+  const hasValidLines = validLines.length > 0;
 
   function updateLine(idx: number, patch: Partial<Line>) {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -40,9 +43,12 @@ export function AddShipmentForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
 
-    const validLines = lines.filter((l) => l.materialId && Number(l.qty) > 0);
-    if (validLines.length === 0) return;
+    if (!hasValidLines) {
+      setError("Tambahkan minimal 1 material dengan qty lebih dari 0 sebelum menyimpan.");
+      return;
+    }
 
     const summary = validLines
       .map((l) => {
@@ -54,45 +60,18 @@ export function AddShipmentForm({
 
     setSaving(true);
 
-    const { data: shipment, error } = await supabase
-      .from("shipments")
-      .insert({ job_order_id: jobOrderId })
-      .select("id")
-      .single();
+    const { error: rpcError } = await supabase.rpc("create_shipment", {
+      p_job_order_id: jobOrderId,
+      p_lines: validLines.map((l) => ({ material_item_id: l.materialId, qty: Number(l.qty) })),
+    });
 
-    if (error || !shipment) {
-      setSaving(false);
+    setSaving(false);
+
+    if (rpcError) {
+      setError(rpcError.message);
       return;
     }
 
-    const shipmentItemRows = validLines.map((l) => {
-      const material = materials.find((m) => m.id === l.materialId)!;
-      return {
-        shipment_id: shipment.id,
-        material_item_id: l.materialId,
-        qty: Number(l.qty),
-        unit_price: material.default_price, // snapshot at creation time
-      };
-    });
-    await supabase.from("shipment_items").insert(shipmentItemRows);
-
-    // Also log each material into Riwayat as a transfer to the maklon,
-    // so shipments show up in the stock movement history, not just here.
-    const movementRows = validLines.map((l) => {
-      const material = materials.find((m) => m.id === l.materialId)!;
-      return {
-        item_id: l.materialId,
-        movement_type: "transfer" as const,
-        qty: Number(l.qty),
-        from_location: "gudang_l2" as const,
-        to_location: "maklon" as const,
-        maklon_id: maklonId,
-        note: `Shipment untuk job order ${skuName} — ${maklonName}`,
-      };
-    });
-    await supabase.from("stock_movements").insert(movementRows);
-
-    setSaving(false);
     setOpen(false);
     setLines([{ materialId: materials[0]?.id ?? "", qty: "" }]);
     router.refresh();
@@ -149,8 +128,10 @@ export function AddShipmentForm({
         </button>
       </div>
 
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
       <div className="flex gap-2 pt-2">
-        <button type="submit" disabled={saving} className="btn-primary flex-1">
+        <button type="submit" disabled={saving || !hasValidLines} className="btn-primary flex-1">
           {saving ? "Menyimpan..." : "Simpan shipment"}
         </button>
         <button type="button" onClick={() => setOpen(false)}>

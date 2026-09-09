@@ -143,13 +143,7 @@ export default async function JobOrderDetailPage({
         )}
 
         {jobOrder.status === "berjalan" && canInput && (
-          <AddShipmentForm
-            jobOrderId={jobOrder.id}
-            maklonId={jobOrder.maklon_id}
-            maklonName={maklonName}
-            skuName={skuName}
-            materials={materials ?? []}
-          />
+          <AddShipmentForm jobOrderId={jobOrder.id} maklonName={maklonName} materials={materials ?? []} />
         )}
       </div>
     </div>

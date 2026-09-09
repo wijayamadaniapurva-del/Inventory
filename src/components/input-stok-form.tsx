@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { DatePicker } from "@/components/date-picker";
 import type { ItemCategory, LocationType, MasterItem, MovementType } from "@/lib/types";
 import { CATEGORY_LABEL, LOCATION_LABEL } from "@/lib/utils";
 
@@ -153,7 +154,7 @@ export function InputStokForm({ items }: { items: MasterItem[] }) {
       {showExpiryField && (
         <div>
           <label className="mb-1 block text-sm text-stone-600">Tanggal kadaluarsa (opsional)</label>
-          <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="w-full" />
+          <DatePicker value={expiryDate} onChange={setExpiryDate} />
         </div>
       )}
 

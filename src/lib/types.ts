@@ -44,7 +44,9 @@ export interface MasterItem {
   unit: ItemUnit;
   bpom_tag: BpomStatus | null; // only meaningful when category === "fg"
   default_price: number;
-  safety_stock_qty: number | null;
+  safety_stock_qty: number | null; // deprecated, superseded by the formula below
+  avg_daily_usage: number | null;
+  lead_time_days: number | null;
   scalev_product_id: string | null;
   is_active: boolean;
 }
@@ -56,7 +58,9 @@ export interface CurrentStockRow {
   unit: ItemUnit;
   bpom_tag: BpomStatus | null;
   default_price: number;
-  safety_stock_qty: number | null;
+  avg_daily_usage: number | null;
+  lead_time_days: number | null;
+  is_active: boolean;
   qty_on_hand: number;
 }
 

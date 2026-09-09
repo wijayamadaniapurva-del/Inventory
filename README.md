@@ -281,3 +281,32 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
   diedit langsung per SKU, dan ada juga saat tambah item baru). Kemungkinan
   belum ketemu karena menu Master Data cuma muncul untuk role SPV — kalau
   testing pakai role lain, memang tidak akan kelihatan di sidebar.
+
+## Revisi kedelapan: safety stock formula, bug shipment kosong, bug ghost data, layout Input Stok
+
+- **Safety Stock sekarang dihitung dari formula**, bukan angka manual:
+  rata-rata pemakaian harian x lead time (hari) x (1 + faktor buffer%).
+  Dikelola dari Master Data → Safety Stock (SPV only) — faktor buffer satu
+  angka global (`app_settings` key `safety_stock_buffer_percent`), dua
+  field lain per item (`master_items.avg_daily_usage`, `.lead_time_days`).
+  Kolom lama `safety_stock_qty` tidak dipakai lagi (dibiarkan ada di
+  skema, tidak dihapus, supaya tidak perlu migrasi drop kolom).
+- **Shipment kosong sekarang benar-benar tidak bisa disimpan** — tombol
+  submit disable di frontend, dan validasi asli ada di fungsi database
+  baru `create_shipment()` yang membuat shipment + shipment_items +
+  entri Riwayat sekaligus dalam satu transaksi atomik (kalau gagal di
+  tengah jalan, semuanya batal, tidak ada data setengah jadi).
+- **Bug ghost data di Stok diperbaiki** — akar masalahnya: view
+  `v_current_stock` tidak pernah menyaring `is_active`, jadi item yang
+  diarsipkan tetap nongol. Sudah difilter di semua query yang pakai view
+  ini (Dashboard, Stok).
+- **Pola hapus item di Master Data disempurnakan**: sekarang coba hapus
+  permanen dulu (berhasil kalau item itu belum pernah dipakai di transaksi
+  manapun — foreign key yang menentukan, bukan pengecekan manual), kalau
+  gagal (karena sudah pernah dipakai) otomatis fallback ke arsipkan
+  seperti sebelumnya. Pesan status ditampilkan supaya user tahu mana yang
+  terjadi.
+- **Halaman Input Stok**: layout 2 kolom (form + panel "Input terakhir"
+  menampilkan 8 input terbaru), dan date picker tanggal kadaluarsa diganti
+  jadi komponen custom (`components/date-picker.tsx`) yang senada dengan
+  dropdown/input lain di form yang sama — bukan lagi widget bawaan browser.
