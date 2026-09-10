@@ -402,3 +402,23 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
   jadi belum difilter di sana.
 - **Keluar tidak diubah** — masih menunggu konfirmasi apakah use case-nya
   (KOL/karyawan, write-off) masih dipakai.
+
+## Revisi keempat belas: display stok di dropdown Item, Keluar dibenahi
+
+- **Dropdown Item di tab Transfer dan Keluar sekarang menampilkan stok
+  di sebelah kanan tiap nama item** (mis. "Bibit parfum adèle ... 10
+  Liter"), lewat komponen custom baru `components/item-picker.tsx`
+  (native `<select>` HTML tidak bisa diberi tata letak seperti ini).
+  Tab Masuk tetap pakai dropdown biasa tanpa angka stok, sesuai arahan.
+- **Struktur Keluar dibenahi**: field "Lokasi" yang dulu isinya campur
+  (kadang asal, kadang tujuan kayak "Customer") sekarang dipisah jadi
+  dua: **Lokasi asal** (Gudang L2/L1 — dipakai untuk cek & kurangi
+  stok) dan **Tujuan** (opsional: KOL/Karyawan, Customer, atau kosong
+  untuk write-off/lainnya).
+- Item dengan stok 0 di lokasi asal yang dipilih juga difilter dari
+  daftar untuk tab Keluar sekarang (sebelumnya cuma Transfer).
+- Field "Lokasi" di tab Masuk disederhanakan jadi tetap "Gudang lantai
+  2" (satu-satunya tujuan yang masuk akal untuk pembelian bahan baku/
+  packaging) — bukan permintaan eksplisit kali ini, tapi konsisten
+  dengan pola yang sama di Transfer; gampang dikembalikan kalau
+  ternyata masih perlu pilihan lain.

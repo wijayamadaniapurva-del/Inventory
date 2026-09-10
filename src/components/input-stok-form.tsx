@@ -3,10 +3,9 @@
 import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { DatePicker } from "@/components/date-picker";
+import { ItemPicker } from "@/components/item-picker";
 import type { ItemCategory, LocationType, MasterItem, MovementType } from "@/lib/types";
-import { CATEGORY_LABEL, LOCATION_LABEL } from "@/lib/utils";
-
-const ALL_LOCATIONS: LocationType[] = ["gudang_l2", "gudang_l1", "vendor_cat", "maklon", "customer", "kol_karyawan"];
+import { CATEGORY_LABEL, formatQty } from "@/lib/utils";
 
 // Which categories make sense for each movement type in this business:
 // - Transfer only ever happens for Packaging (botol <-> Vendor Cat) or
@@ -15,13 +14,14 @@ const ALL_LOCATIONS: LocationType[] = ["gudang_l2", "gudang_l1", "vendor_cat", "
 // - Masuk excludes Finish Good: FG stock now only enters through the QC
 //   feature (tied to a Job Order), never a bare manual entry, so every
 //   unit of FG stays traceable to where it came from.
-// - Keluar is unchanged for now (KOL/karyawan pickup, write-off) while
-//   that feature's future is still being decided.
+// - Keluar stays open to all 3 categories (KOL/karyawan pickup, write-off).
 function categoriesForType(t: MovementType): ItemCategory[] {
   if (t === "transfer") return ["packaging", "fg"];
   if (t === "masuk") return ["bahan_baku", "packaging"];
   return ["bahan_baku", "packaging", "fg"];
 }
+
+type KeluarDestination = "" | "customer" | "kol_karyawan";
 
 export function InputStokForm({
   items,
@@ -38,41 +38,58 @@ export function InputStokForm({
   const [qty, setQty] = useState<string>("");
   const [location, setLocation] = useState<LocationType>("gudang_l2");
   const [packagingToLocation, setPackagingToLocation] = useState<"vendor_cat" | "gudang_l2">("vendor_cat");
+  const [keluarFromLocation, setKeluarFromLocation] = useState<"gudang_l2" | "gudang_l1">("gudang_l2");
+  const [keluarDestination, setKeluarDestination] = useState<KeluarDestination>("");
   const [expiryDate, setExpiryDate] = useState("");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   const categoryOptions = categoriesForType(type);
 
-  // For Transfer: derive from/to locations from category (+ direction for
-  // Packaging) instead of two free-standing dropdowns, so an invalid
-  // combination can't be picked in the first place.
-  const transferToLocation: LocationType = category === "fg" ? "gudang_l1" : packagingToLocation;
-  const transferFromLocation: LocationType =
-    category === "fg" ? "gudang_l2" : packagingToLocation === "vendor_cat" ? "gudang_l2" : "vendor_cat";
-
-  const itemsInCategory = useMemo(
-    () => itemsAvailable(category, type, packagingToLocation),
-    [items, category, type, packagingToLocation, stockByItem]
-  );
-
-  const selectedItem = itemsInCategory.find((i) => i.id === itemId) ?? itemsInCategory[0];
-
   function computeFromLocation(cat: ItemCategory, pkgToLoc: "vendor_cat" | "gudang_l2"): LocationType {
     if (cat === "fg") return "gudang_l2";
     return pkgToLoc === "vendor_cat" ? "gudang_l2" : "vendor_cat";
   }
 
-  function itemsAvailable(cat: ItemCategory, nextType: MovementType, pkgToLoc: "vendor_cat" | "gudang_l2") {
+  // For Transfer: derive from/to locations from category (+ direction for
+  // Packaging) instead of two free-standing dropdowns, so an invalid
+  // combination can't be picked in the first place.
+  const transferToLocation: LocationType = category === "fg" ? "gudang_l1" : packagingToLocation;
+  const transferFromLocation: LocationType = computeFromLocation(category, packagingToLocation);
+
+  function stockAt(item: MasterItem, loc: "gudang_l2" | "gudang_l1"): number {
+    return loc === "gudang_l2" ? (stockByItem[item.id]?.l2 ?? 0) : (stockByItem[item.id]?.l1 ?? 0);
+  }
+
+  function itemsAvailable(cat: ItemCategory, nextType: MovementType, pkgToLoc: "vendor_cat" | "gudang_l2", keluarFrom: "gudang_l2" | "gudang_l1") {
     const inCat = items.filter((i) => i.category === cat);
-    if (nextType === "transfer" && computeFromLocation(cat, pkgToLoc) === "gudang_l2") {
-      return inCat.filter((i) => (stockByItem[i.id]?.l2 ?? 0) > 0);
+    if (nextType === "transfer") {
+      const from = computeFromLocation(cat, pkgToLoc);
+      if (from === "gudang_l2" || from === "gudang_l1") {
+        return inCat.filter((i) => stockAt(i, from) > 0);
+      }
+      return inCat; // Vendor Cat source: stock not tracked yet, don't filter
+    }
+    if (nextType === "keluar") {
+      return inCat.filter((i) => stockAt(i, keluarFrom) > 0);
     }
     return inCat;
   }
 
-  function resetItemFor(nextCategory: ItemCategory, nextType: MovementType, pkgToLoc: "vendor_cat" | "gudang_l2" = packagingToLocation) {
-    const usable = itemsAvailable(nextCategory, nextType, pkgToLoc);
+  const itemsInCategory = useMemo(
+    () => itemsAvailable(category, type, packagingToLocation, keluarFromLocation),
+    [items, category, type, packagingToLocation, keluarFromLocation, stockByItem]
+  );
+
+  const selectedItem = itemsInCategory.find((i) => i.id === itemId) ?? itemsInCategory[0];
+
+  function resetItemFor(
+    nextCategory: ItemCategory,
+    nextType: MovementType,
+    pkgToLoc: "vendor_cat" | "gudang_l2" = packagingToLocation,
+    keluarFrom: "gudang_l2" | "gudang_l1" = keluarFromLocation
+  ) {
+    const usable = itemsAvailable(nextCategory, nextType, pkgToLoc, keluarFrom);
     setItemId(usable[0]?.id ?? "");
   }
 
@@ -89,6 +106,18 @@ export function InputStokForm({
     if (next === "packaging") setPackagingToLocation("vendor_cat");
     resetItemFor(next, type);
   }
+
+  // Item picker options with a right-aligned stock figure — Masuk keeps
+  // the plain dropdown (no stock shown), Transfer/Keluar get this.
+  const pickerOptions = itemsInCategory.map((i) => {
+    let subtitle: string | undefined;
+    if (type === "transfer" && (transferFromLocation === "gudang_l2" || transferFromLocation === "gudang_l1")) {
+      subtitle = formatQty(stockAt(i, transferFromLocation), i.unit);
+    } else if (type === "keluar") {
+      subtitle = formatQty(stockAt(i, keluarFromLocation), i.unit);
+    }
+    return { id: i.id, name: i.name, subtitle };
+  });
 
   const showBpomWarning =
     type === "transfer" &&
@@ -111,8 +140,10 @@ export function InputStokForm({
       item_id: selectedItem.id,
       movement_type: type,
       qty: Number(qty),
-      from_location: type === "transfer" ? transferFromLocation : type === "keluar" ? location : null,
-      to_location: type === "transfer" ? transferToLocation : type === "masuk" ? location : null,
+      from_location:
+        type === "transfer" ? transferFromLocation : type === "keluar" ? keluarFromLocation : null,
+      to_location:
+        type === "transfer" ? transferToLocation : type === "masuk" ? location : type === "keluar" && keluarDestination ? keluarDestination : null,
       expiry_date: showExpiryField && expiryDate ? expiryDate : null,
     });
 
@@ -161,15 +192,38 @@ export function InputStokForm({
         </select>
       </div>
 
+      {/* Keluar: pick source floor first — item list + stock shown depend on it */}
+      {type === "keluar" && (
+        <div>
+          <label className="mb-1 block text-sm text-stone-600">Lokasi asal</label>
+          <select
+            className="w-full"
+            value={keluarFromLocation}
+            onChange={(e) => {
+              const next = e.target.value as "gudang_l2" | "gudang_l1";
+              setKeluarFromLocation(next);
+              resetItemFor(category, type, packagingToLocation, next);
+            }}
+          >
+            <option value="gudang_l2">Gudang lantai 2</option>
+            <option value="gudang_l1">Gudang lantai 1</option>
+          </select>
+        </div>
+      )}
+
       <div>
         <label className="mb-1 block text-sm text-stone-600">Item</label>
-        <select className="w-full" value={selectedItem?.id ?? ""} onChange={(e) => setItemId(e.target.value)}>
-          {itemsInCategory.map((i) => (
-            <option key={i.id} value={i.id}>
-              {i.name}
-            </option>
-          ))}
-        </select>
+        {type === "masuk" ? (
+          <select className="w-full" value={selectedItem?.id ?? ""} onChange={(e) => setItemId(e.target.value)}>
+            {itemsInCategory.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <ItemPicker options={pickerOptions} value={selectedItem?.id ?? ""} onChange={setItemId} />
+        )}
         {itemsInCategory.length === 0 && (
           <p className="mt-1 text-xs text-stone-400">
             Tidak ada item dengan stok tersedia untuk dipindahkan dari lokasi ini.
@@ -217,8 +271,8 @@ export function InputStokForm({
         </div>
       )}
 
-      {type === "transfer" ? (
-        category === "fg" ? (
+      {type === "transfer" &&
+        (category === "fg" ? (
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="mb-1 block text-sm text-stone-600">Dari lokasi</label>
@@ -245,16 +299,28 @@ export function InputStokForm({
               <option value="gudang_l2">Vendor cat → Gudang lantai 2</option>
             </select>
           </div>
-        )
-      ) : (
+        ))}
+
+      {type === "masuk" && (
         <div>
           <label className="mb-1 block text-sm text-stone-600">Lokasi</label>
           <select className="w-full" value={location} onChange={(e) => setLocation(e.target.value as LocationType)}>
-            {ALL_LOCATIONS.map((l) => (
-              <option key={l} value={l}>
-                {LOCATION_LABEL[l]}
-              </option>
-            ))}
+            <option value="gudang_l2">Gudang lantai 2</option>
+          </select>
+        </div>
+      )}
+
+      {type === "keluar" && (
+        <div>
+          <label className="mb-1 block text-sm text-stone-600">Tujuan (opsional)</label>
+          <select
+            className="w-full"
+            value={keluarDestination}
+            onChange={(e) => setKeluarDestination(e.target.value as KeluarDestination)}
+          >
+            <option value="">Lainnya / write-off</option>
+            <option value="kol_karyawan">KOL / Karyawan</option>
+            <option value="customer">Customer</option>
           </select>
         </div>
       )}
