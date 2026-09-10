@@ -383,3 +383,22 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
   penyebabnya beda: kurang kirim dari maklon vs gagal QC).
 - Tidak ada perubahan skema database untuk ini — murni perhitungan ulang
   di tampilan dari data yang sudah ada (`fg_batches`).
+
+## Revisi ketiga belas: Transfer dibatasi per kategori, item stok-0 disaring
+
+- **Transfer** sekarang cuma bisa untuk kategori Packaging (khusus arah
+  Gudang L2 ↔ Vendor Cat, untuk proses cat botol) dan Finish Good (cuma
+  arah Gudang L2 → L1, dikunci otomatis, tidak ada dropdown bebas lagi).
+  Bahan baku tidak lagi muncul di Transfer — pengirimannya ke maklon
+  selalu lewat Job Order & Shipment.
+- **Masuk** sekarang cuma untuk Bahan baku dan Packaging. Finish Good
+  dikeluarkan dari daftar kategori Masuk karena stok FG sekarang resminya
+  masuk lewat fitur QC (supaya semua stok FG tetap tertaut ke Job Order
+  asalnya) — bukan keputusan final, gampang dikembalikan kalau ternyata
+  masih dibutuhkan.
+- **Item dengan stok 0 di lokasi asal disaring dari dropdown** (bukan
+  cuma di-disable) saat Transfer — khusus untuk asal Gudang L2 yang
+  datanya akurat; untuk asal Vendor Cat belum ada data stok tertelusur,
+  jadi belum difilter di sana.
+- **Keluar tidak diubah** — masih menunggu konfirmasi apakah use case-nya
+  (KOL/karyawan, write-off) masih dipakai.

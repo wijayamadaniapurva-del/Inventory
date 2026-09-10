@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatWib, formatQty, LOCATION_LABEL } from "@/lib/utils";
-import type { MasterItem, StockMovement } from "@/lib/types";
+import type { CurrentStockRow, MasterItem, StockMovement } from "@/lib/types";
 import { InputStokForm } from "@/components/input-stok-form";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ function locationLabel(loc: string | null, maklonName?: string | null) {
 export default async function InputStokPage() {
   const supabase = await createClient();
 
-  const [{ data: items }, { data: recent }] = await Promise.all([
+  const [{ data: items }, { data: recent }, { data: stockRows }] = await Promise.all([
     supabase
       .from("master_items")
       .select("id, name, category, unit, bpom_tag, default_price, safety_stock_qty, scalev_product_id, is_active")
@@ -33,13 +33,19 @@ export default async function InputStokPage() {
       .order("created_at", { ascending: false })
       .limit(8)
       .returns<StockMovement[]>(),
+    supabase.from("v_current_stock").select("item_id, qty_gudang_l2, qty_gudang_l1").returns<CurrentStockRow[]>(),
   ]);
+
+  const stockByItem: Record<string, { l2: number; l1: number }> = {};
+  for (const r of stockRows ?? []) {
+    stockByItem[r.item_id] = { l2: r.qty_gudang_l2, l1: r.qty_gudang_l1 };
+  }
 
   return (
     <div>
       <h1 className="page-title mb-4">Input Stok</h1>
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-        <InputStokForm items={items ?? []} />
+        <InputStokForm items={items ?? []} stockByItem={stockByItem} />
 
         <div className="card">
           <p className="mb-3 text-sm font-medium text-stone-700">Input terakhir</p>
