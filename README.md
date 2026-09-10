@@ -372,3 +372,14 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
   tetap dipakai apa adanya untuk kartu nilai di Dashboard).
 - Halaman Stok menampilkan dua kolom terpisah "Stok L2" dan "Stok L1"
   untuk semua kategori (bukan cuma FG) — export Excel juga ikut pecah.
+
+## Revisi kedua belas: pisahkan selisih produksi maklon vs reject QC
+
+- Kartu Job Order sekarang menunjukkan **"Diterima dari maklon"** dan
+  **"Selisih produksi maklon"** (target − diterima) terpisah dari
+  **"Reject QC"** — sebelumnya cuma ada satu angka "Selisih dari target"
+  yang menggabungkan dua penyebab berbeda jadi satu, gampang disalah-
+  artikan (kebetulan di satu contoh kasus angkanya sama, padahal
+  penyebabnya beda: kurang kirim dari maklon vs gagal QC).
+- Tidak ada perubahan skema database untuk ini — murni perhitungan ulang
+  di tampilan dari data yang sudah ada (`fg_batches`).

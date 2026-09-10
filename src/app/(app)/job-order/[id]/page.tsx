@@ -59,6 +59,7 @@ export default async function JobOrderDetailPage({
 
   const qtyLolos = (fgBatches ?? []).filter((b) => b.qc_status === "lolos").reduce((sum, b) => sum + b.qty, 0);
   const qtyReject = (fgBatches ?? []).filter((b) => b.qc_status === "reject").reduce((sum, b) => sum + b.qty, 0);
+  const qtyDiterima = qtyLolos + qtyReject;
   const displayActualOutput = jobOrder.status === "selesai" ? jobOrder.actual_output : qtyLolos;
 
   const totalMaterialCost = (shipments ?? []).reduce(
@@ -66,7 +67,10 @@ export default async function JobOrderDetailPage({
     0
   );
   const totalCost = totalMaterialCost + jobOrder.service_fee;
-  const variance = displayActualOutput != null ? jobOrder.target_output - displayActualOutput : null;
+  // Two separate causes, kept visually apart so one doesn't hide the other:
+  // shortfall in what the maklon delivered at all, vs. shortfall from QC
+  // rejecting part of what was delivered.
+  const varianceProduksi = qtyDiterima > 0 || (fgBatches ?? []).length > 0 ? jobOrder.target_output - qtyDiterima : null;
   const hppRiil = displayActualOutput && displayActualOutput > 0 ? totalCost / displayActualOutput : null;
 
   return (
@@ -96,23 +100,33 @@ export default async function JobOrderDetailPage({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-stone-100 pt-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 border-t border-stone-100 pt-3 sm:grid-cols-4">
           <div>
             <p className="text-xs text-stone-500">Target output</p>
             <p className="figure font-medium">{jobOrder.target_output} {skuUnit}</p>
           </div>
           <div>
-            <p className="text-xs text-stone-500">Lolos QC</p>
-            <p className="figure font-medium text-emerald-600">{qtyLolos} {skuUnit}</p>
+            <p className="text-xs text-stone-500">Diterima dari maklon</p>
+            <p className="figure font-medium">{varianceProduksi != null ? qtyDiterima : "-"} {skuUnit}</p>
           </div>
           <div>
-            <p className="text-xs text-stone-500">Reject</p>
+            <p className="text-xs text-stone-500">Selisih produksi maklon</p>
+            <p className={"figure font-medium " + (varianceProduksi && varianceProduksi > 0 ? "text-red-600" : "")}>
+              {varianceProduksi != null ? (varianceProduksi > 0 ? `-${varianceProduksi}` : varianceProduksi < 0 ? `+${-varianceProduksi}` : "0") + ` ${skuUnit}` : "-"}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs text-stone-500">Reject QC</p>
             <p className="figure font-medium text-red-600">{qtyReject} {skuUnit}</p>
           </div>
           <div>
-            <p className="text-xs text-stone-500">Selisih dari target</p>
-            <p className={"figure font-medium " + (variance && variance > 0 ? "text-red-600" : "")}>
-              {variance != null ? (variance > 0 ? `-${variance}` : `+${-variance}`) + ` ${skuUnit}` : "-"}
+            <p className="text-xs text-stone-500">Lolos QC (jadi stok)</p>
+            <p className="figure font-medium text-emerald-600">{qtyLolos} {skuUnit}</p>
+          </div>
+          <div>
+            <p className="text-xs text-stone-500">Total selisih dari target</p>
+            <p className={"figure font-medium " + (jobOrder.target_output - qtyLolos > 0 ? "text-red-600" : "")}>
+              {jobOrder.target_output - qtyLolos > 0 ? `-${jobOrder.target_output - qtyLolos}` : `+${qtyLolos - jobOrder.target_output}`} {skuUnit}
             </p>
           </div>
           <div>
