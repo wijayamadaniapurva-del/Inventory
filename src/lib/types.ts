@@ -62,6 +62,8 @@ export interface CurrentStockRow {
   lead_time_days: number | null;
   is_active: boolean;
   qty_on_hand: number;
+  qty_gudang_l2: number;
+  qty_gudang_l1: number;
 }
 
 export interface StockMovement {
@@ -74,11 +76,22 @@ export interface StockMovement {
   maklon_id: string | null;
   note: string | null;
   expiry_date: string | null;
+  job_order_id: string | null;
   created_by: string | null;
   created_at: string; // stored UTC — format with formatWib() before display
   // joined for display
   master_items?: Pick<MasterItem, "name" | "unit" | "category">;
   maklon?: Pick<Maklon, "name">;
+}
+
+export interface FgBatch {
+  id: string;
+  job_order_id: string | null;
+  fg_item_id: string;
+  qty: number;
+  qc_status: QcStatus;
+  expiry_date: string | null;
+  received_at: string;
 }
 
 export interface JobOrder {
@@ -92,7 +105,7 @@ export interface JobOrder {
   opened_at: string;
   closed_at: string | null;
   deleted_at: string | null;
-  master_items?: Pick<MasterItem, "name">;
+  master_items?: Pick<MasterItem, "name" | "unit">;
   maklon?: Pick<Maklon, "name">;
   shipments?: Shipment[];
 }

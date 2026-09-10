@@ -21,7 +21,8 @@ export function StockTable({ rows, bufferPercent }: { rows: CurrentStockRow[]; b
   const exportRows = rows.map((r) => ({
     Kategori: CATEGORY_LABEL[r.category],
     "Nama item": r.name,
-    Stok: r.qty_on_hand,
+    "Stok Gudang L2": r.qty_gudang_l2,
+    "Stok Gudang L1": r.qty_gudang_l1,
     Satuan: r.unit,
     "Tag BPOM": r.category === "fg" ? (r.bpom_tag === "bpom" ? "BPOM" : "Non-BPOM") : "",
     Harga: r.default_price,
@@ -29,10 +30,15 @@ export function StockTable({ rows, bufferPercent }: { rows: CurrentStockRow[]; b
   }));
 
   const cols = isAll
-    ? "100px 1fr 110px 110px 130px"
+    ? "90px 1fr 95px 95px 110px 130px"
     : isFg
-      ? "1fr 90px 110px 110px 130px"
-      : "1fr 110px 110px 130px";
+      ? "1fr 95px 95px 90px 110px 130px"
+      : "1fr 95px 95px 110px 130px";
+
+  function belowSafety(r: CurrentStockRow) {
+    const threshold = computeSafetyStock(r.avg_daily_usage, r.lead_time_days, bufferPercent);
+    return threshold !== null && r.qty_on_hand < threshold;
+  }
 
   return (
     <div>
@@ -64,28 +70,31 @@ export function StockTable({ rows, bufferPercent }: { rows: CurrentStockRow[]; b
         <div className="grid gap-2 border-b border-stone-200 px-4 py-2 text-xs text-stone-500" style={{ gridTemplateColumns: cols }}>
           {isAll && <span>Kategori</span>}
           <span>Nama item</span>
-          <span>Stok</span>
+          <span>Stok L2</span>
+          <span>Stok L1</span>
           {isFg && <span>Tag BPOM</span>}
           <span>Harga</span>
           <span>Nilai</span>
         </div>
 
-        {filtered.map((r) => (
-          <div key={r.item_id} className="grid items-center gap-2 border-b border-stone-100 px-4 py-2.5 text-sm last:border-0" style={{ gridTemplateColumns: cols }}>
-            {isAll && <span className="text-stone-500">{CATEGORY_LABEL[r.category]}</span>}
-            <span>{r.name}</span>
-            <span className={"figure " + (computeSafetyStock(r.avg_daily_usage, r.lead_time_days, bufferPercent) !== null && r.qty_on_hand < (computeSafetyStock(r.avg_daily_usage, r.lead_time_days, bufferPercent) as number) ? "text-red-600 font-medium" : "")}>
-              {formatQty(r.qty_on_hand, r.unit)}
-            </span>
-            {isFg && r.category === "fg" && (
-              <span className={"badge " + (r.bpom_tag === "bpom" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
-                {r.bpom_tag === "bpom" ? "BPOM" : "Non-BPOM"}
-              </span>
-            )}
-            <span className="figure text-stone-500">{formatCurrency(r.default_price)}</span>
-            <span className="figure">{formatCurrency(r.qty_on_hand * r.default_price)}</span>
-          </div>
-        ))}
+        {filtered.map((r) => {
+          const flag = belowSafety(r);
+          return (
+            <div key={r.item_id} className="grid items-center gap-2 border-b border-stone-100 px-4 py-2.5 text-sm last:border-0" style={{ gridTemplateColumns: cols }}>
+              {isAll && <span className="text-stone-500">{CATEGORY_LABEL[r.category]}</span>}
+              <span>{r.name}</span>
+              <span className={"figure " + (flag ? "text-red-600 font-medium" : "")}>{formatQty(r.qty_gudang_l2, r.unit)}</span>
+              <span className={"figure " + (flag ? "text-red-600 font-medium" : "")}>{formatQty(r.qty_gudang_l1, r.unit)}</span>
+              {isFg && r.category === "fg" && (
+                <span className={"badge " + (r.bpom_tag === "bpom" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                  {r.bpom_tag === "bpom" ? "BPOM" : "Non-BPOM"}
+                </span>
+              )}
+              <span className="figure text-stone-500">{formatCurrency(r.default_price)}</span>
+              <span className="figure">{formatCurrency(r.qty_on_hand * r.default_price)}</span>
+            </div>
+          );
+        })}
 
         {filtered.length === 0 && <p className="px-4 py-6 text-sm text-stone-400">Belum ada item di kategori ini.</p>}
       </div>

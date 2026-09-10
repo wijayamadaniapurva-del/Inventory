@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   X,
+  SearchCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/logo";
@@ -23,6 +24,7 @@ const LINKS: { href: string; label: string; icon: typeof LayoutDashboard; roles:
   { href: "/input", label: "Input stok", icon: ClipboardPlus, roles: ["warehouse_staff", "spv"] },
   { href: "/stok", label: "Stok", icon: Boxes, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/job-order", label: "Job order & shipment", icon: Truck, roles: ["owner", "spv", "warehouse_staff", "finance"] },
+  { href: "/audit-trail", label: "Audit Trail", icon: SearchCheck, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/riwayat", label: "Riwayat", icon: History, roles: ["owner", "spv", "warehouse_staff", "finance"] },
   { href: "/settings/master-item", label: "Master Data", icon: Settings, roles: ["spv"] },
 ];

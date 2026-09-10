@@ -131,6 +131,7 @@ create table stock_movements (
   maklon_id uuid references maklon(id),
   note text,
   expiry_date date, -- optional; set on 'masuk' movements for raw materials that expire
+  job_order_id uuid references job_orders(id), -- links this movement to a Job Order for the audit trail (shipments out, QC'd FG in)
   created_by uuid references profiles(id),
   created_at timestamptz not null default now(),
   constraint transfer_needs_both_locations check (
@@ -259,13 +260,14 @@ alter table monthly_stock_snapshots enable row level security;
 create policy "authenticated can read" on monthly_stock_snapshots for select using (auth.role() = 'authenticated');
 
 -- ---------------------------------------------------------------------
--- Current stock on hand per item = masuk - keluar. Transfers move
--- material between locations but don't change total company-wide
--- qty on hand, so they're excluded from this running total (Riwayat
--- still logs them individually, filterable by location).
--- is_active is included so callers can exclude archived items (fixes
--- the bug where a deactivated item's stock kept showing on the Stok
--- page — the view previously didn't expose this flag at all).
+-- Current stock on hand per item = masuk - keluar (company-wide total,
+-- unchanged — still used for Dashboard totals and the safety stock
+-- alert). qty_gudang_l2 / qty_gudang_l1 break the same total down by
+-- floor, since FG passing QC lands in L2 first (limited space in L1)
+-- and only moves to L1 via a separate Transfer — so "total on hand"
+-- alone doesn't say which floor it's actually sitting on.
+-- is_active lets callers exclude archived items (fixes the bug where a
+-- deactivated item's stock kept showing on the Stok page).
 -- NOTE: this does not yet model bahan-baku consumption into FG output
 -- (that's tracked via Job Order HPP instead) — refine if you need a
 -- live WIP/BOM-driven stock count later.
@@ -285,10 +287,47 @@ select
     when sm.movement_type = 'masuk' then sm.qty
     when sm.movement_type = 'keluar' then -sm.qty
     else 0
-  end), 0) as qty_on_hand
+  end), 0) as qty_on_hand,
+  coalesce(sum(case
+    when sm.to_location = 'gudang_l2' and sm.movement_type in ('masuk', 'transfer') then sm.qty
+    when sm.from_location = 'gudang_l2' and sm.movement_type in ('keluar', 'transfer') then -sm.qty
+    else 0
+  end), 0) as qty_gudang_l2,
+  coalesce(sum(case
+    when sm.to_location = 'gudang_l1' and sm.movement_type in ('masuk', 'transfer') then sm.qty
+    when sm.from_location = 'gudang_l1' and sm.movement_type in ('keluar', 'transfer') then -sm.qty
+    else 0
+  end), 0) as qty_gudang_l1
 from master_items mi
 left join stock_movements sm on sm.item_id = mi.id
 group by mi.id, mi.name, mi.category, mi.unit, mi.bpom_tag, mi.default_price, mi.avg_daily_usage, mi.lead_time_days, mi.is_active;
+
+-- ---------------------------------------------------------------------
+-- Audit trail summary per Job Order: target vs QC'd lolos/reject, for
+-- the Audit Trail list page. A Job Order can have more than one QC
+-- entry (partial deliveries) — this aggregates all of them.
+-- ---------------------------------------------------------------------
+create view v_job_order_variance as
+select
+  jo.id,
+  jo.target_output,
+  jo.actual_output,
+  jo.status,
+  jo.opened_at,
+  jo.closed_at,
+  jo.sku_item_id,
+  jo.maklon_id,
+  mi.name as sku_name,
+  mi.unit as sku_unit,
+  m.name as maklon_name,
+  coalesce(sum(fb.qty) filter (where fb.qc_status = 'lolos'), 0) as qty_lolos,
+  coalesce(sum(fb.qty) filter (where fb.qc_status = 'reject'), 0) as qty_reject
+from job_orders jo
+join master_items mi on mi.id = jo.sku_item_id
+join maklon m on m.id = jo.maklon_id
+left join fg_batches fb on fb.job_order_id = jo.id
+where jo.deleted_at is null
+group by jo.id, mi.name, mi.unit, m.name;
 
 -- =========================================================================
 -- Row Level Security — starting point only.
@@ -422,10 +461,11 @@ begin
     insert into shipment_items (shipment_id, material_item_id, qty, unit_price)
     values (v_shipment_id, v_material_id, v_qty, coalesce(v_price, 0));
 
-    insert into stock_movements (item_id, movement_type, qty, from_location, to_location, maklon_id, note)
+    insert into stock_movements (item_id, movement_type, qty, from_location, to_location, maklon_id, note, job_order_id)
     values (
       v_material_id, 'transfer', v_qty, 'gudang_l2', 'maklon', v_maklon_id,
-      'Shipment untuk job order ' || v_sku_name || ' — ' || v_maklon_name
+      'Shipment untuk job order ' || v_sku_name || ' — ' || v_maklon_name,
+      p_job_order_id
     );
   end loop;
 
@@ -435,6 +475,81 @@ $$;
 
 revoke all on function create_shipment(uuid, jsonb) from public;
 grant execute on function create_shipment(uuid, jsonb) to authenticated;
+
+-- Records one QC decision for FG that came back from a maklon (a single
+-- delivery can call this more than once — e.g. 1700 lolos + 40 reject
+-- as two separate calls). Only a 'lolos' entry adds real stock, tagged
+-- with job_order_id so it can be traced back later.
+create or replace function submit_qc_batch(
+  p_job_order_id uuid,
+  p_qty numeric,
+  p_qc_status qc_status,
+  p_expiry_date date default null
+)
+returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  v_batch_id uuid;
+  v_fg_item_id uuid;
+begin
+  if current_user_role() not in ('spv', 'warehouse_staff') then
+    raise exception 'Tidak punya akses untuk mencatat QC.';
+  end if;
+
+  if p_qty is null or p_qty <= 0 then
+    raise exception 'Qty harus lebih dari 0.';
+  end if;
+
+  select sku_item_id into v_fg_item_id from job_orders where id = p_job_order_id and deleted_at is null;
+  if v_fg_item_id is null then
+    raise exception 'Job order tidak ditemukan.';
+  end if;
+
+  insert into fg_batches (job_order_id, fg_item_id, qty, qc_status, expiry_date)
+  values (p_job_order_id, v_fg_item_id, p_qty, p_qc_status, p_expiry_date)
+  returning id into v_batch_id;
+
+  if p_qc_status = 'lolos' then
+    insert into stock_movements (item_id, movement_type, qty, to_location, expiry_date, job_order_id, note)
+    values (v_fg_item_id, 'masuk', p_qty, 'gudang_l2', p_expiry_date, p_job_order_id, 'FG lolos QC dari job order');
+  end if;
+
+  return v_batch_id;
+end;
+$$;
+
+revoke all on function submit_qc_batch(uuid, numeric, qc_status, date) from public;
+grant execute on function submit_qc_batch(uuid, numeric, qc_status, date) to authenticated;
+
+-- Closes a Job Order. actual_output is computed here (sum of QC'd
+-- 'lolos' qty for this job order) — never typed in manually anymore,
+-- so it always matches what actually went through QC.
+create or replace function close_job_order(p_job_order_id uuid)
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  v_lolos numeric;
+begin
+  if current_user_role() not in ('spv', 'warehouse_staff') then
+    raise exception 'Tidak punya akses untuk menutup job order.';
+  end if;
+
+  select coalesce(sum(qty), 0) into v_lolos
+  from fg_batches
+  where job_order_id = p_job_order_id and qc_status = 'lolos';
+
+  update job_orders
+  set actual_output = v_lolos, status = 'selesai', closed_at = now()
+  where id = p_job_order_id;
+end;
+$$;
+
+revoke all on function close_job_order(uuid) from public;
+grant execute on function close_job_order(uuid) to authenticated;
 
 create policy "spv and warehouse_staff can insert shipments" on shipments
   for insert with check (current_user_role() in ('spv', 'warehouse_staff'));

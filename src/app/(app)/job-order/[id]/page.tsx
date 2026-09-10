@@ -3,10 +3,11 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { formatCurrency, formatWib } from "@/lib/utils";
-import type { JobOrder, MasterItem, Shipment } from "@/lib/types";
+import type { FgBatch, JobOrder, MasterItem, Shipment } from "@/lib/types";
 import { AddShipmentForm } from "@/components/add-shipment-form";
 import { CloseJobOrderForm } from "@/components/close-job-order-form";
 import { EditServiceFee } from "@/components/edit-service-fee";
+import { QcForm } from "@/components/qc-form";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export default async function JobOrderDetailPage({
   const { data: jobOrder } = await supabase
     .from("job_orders")
     .select(
-      "id, target_output, actual_output, service_fee, status, opened_at, sku_item_id, maklon_id, master_items(name), maklon(name)"
+      "id, target_output, actual_output, service_fee, status, opened_at, sku_item_id, maklon_id, master_items(name, unit), maklon(name)"
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -31,31 +32,42 @@ export default async function JobOrderDetailPage({
 
   if (!jobOrder) notFound();
 
-  const { data: shipments } = await supabase
-    .from("shipments")
-    .select("id, shipped_at, surat_jalan_no, shipment_items(id, qty, unit_price, material_item_id, master_items(name, unit))")
-    .eq("job_order_id", id)
-    .order("shipped_at", { ascending: true })
-    .returns<Shipment[]>();
+  const [{ data: shipments }, { data: materials }, { data: fgBatches }] = await Promise.all([
+    supabase
+      .from("shipments")
+      .select("id, shipped_at, surat_jalan_no, shipment_items(id, qty, unit_price, material_item_id, master_items(name, unit))")
+      .eq("job_order_id", id)
+      .order("shipped_at", { ascending: true })
+      .returns<Shipment[]>(),
+    supabase
+      .from("master_items")
+      .select("id, name, unit, default_price")
+      .in("category", ["bahan_baku", "packaging"])
+      .eq("is_active", true)
+      .returns<Pick<MasterItem, "id" | "name" | "unit" | "default_price">[]>(),
+    supabase
+      .from("fg_batches")
+      .select("id, qty, qc_status, expiry_date, received_at")
+      .eq("job_order_id", id)
+      .order("received_at", { ascending: false })
+      .returns<FgBatch[]>(),
+  ]);
 
-  const { data: materials } = await supabase
-    .from("master_items")
-    .select("id, name, unit, default_price")
-    .in("category", ["bahan_baku", "packaging"])
-    .eq("is_active", true)
-    .returns<Pick<MasterItem, "id" | "name" | "unit" | "default_price">[]>();
+  const skuName = jobOrder.master_items?.name ?? "-";
+  const skuUnit = jobOrder.master_items?.unit ?? "pcs";
+  const maklonName = jobOrder.maklon?.name ?? "-";
+
+  const qtyLolos = (fgBatches ?? []).filter((b) => b.qc_status === "lolos").reduce((sum, b) => sum + b.qty, 0);
+  const qtyReject = (fgBatches ?? []).filter((b) => b.qc_status === "reject").reduce((sum, b) => sum + b.qty, 0);
+  const displayActualOutput = jobOrder.status === "selesai" ? jobOrder.actual_output : qtyLolos;
 
   const totalMaterialCost = (shipments ?? []).reduce(
     (sum, s) => sum + (s.shipment_items ?? []).reduce((s2, li) => s2 + li.qty * li.unit_price, 0),
     0
   );
   const totalCost = totalMaterialCost + jobOrder.service_fee;
-  const variance = jobOrder.actual_output != null ? jobOrder.target_output - jobOrder.actual_output : null;
-  const hppRiil =
-    jobOrder.actual_output && jobOrder.actual_output > 0 ? totalCost / jobOrder.actual_output : null;
-
-  const skuName = jobOrder.master_items?.name ?? "-";
-  const maklonName = jobOrder.maklon?.name ?? "-";
+  const variance = displayActualOutput != null ? jobOrder.target_output - displayActualOutput : null;
+  const hppRiil = displayActualOutput && displayActualOutput > 0 ? totalCost / displayActualOutput : null;
 
   return (
     <div className="space-y-6">
@@ -84,19 +96,23 @@ export default async function JobOrderDetailPage({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-stone-100 pt-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 border-t border-stone-100 pt-3 sm:grid-cols-3 lg:grid-cols-6">
           <div>
             <p className="text-xs text-stone-500">Target output</p>
-            <p className="figure font-medium">{jobOrder.target_output} pcs</p>
+            <p className="figure font-medium">{jobOrder.target_output} {skuUnit}</p>
           </div>
           <div>
-            <p className="text-xs text-stone-500">Actual output</p>
-            <p className="figure font-medium">{jobOrder.actual_output ?? "-"} pcs</p>
+            <p className="text-xs text-stone-500">Lolos QC</p>
+            <p className="figure font-medium text-emerald-600">{qtyLolos} {skuUnit}</p>
           </div>
           <div>
-            <p className="text-xs text-stone-500">Selisih</p>
+            <p className="text-xs text-stone-500">Reject</p>
+            <p className="figure font-medium text-red-600">{qtyReject} {skuUnit}</p>
+          </div>
+          <div>
+            <p className="text-xs text-stone-500">Selisih dari target</p>
             <p className={"figure font-medium " + (variance && variance > 0 ? "text-red-600" : "")}>
-              {variance != null ? (variance > 0 ? `-${variance}` : `+${-variance}`) + " pcs" : "-"}
+              {variance != null ? (variance > 0 ? `-${variance}` : `+${-variance}`) + ` ${skuUnit}` : "-"}
             </p>
           </div>
           <div>
@@ -108,13 +124,36 @@ export default async function JobOrderDetailPage({
             )}
           </div>
           <div>
-            <p className="text-xs text-stone-500">HPP riil / pcs</p>
+            <p className="text-xs text-stone-500">HPP riil / {skuUnit}</p>
             <p className="figure font-medium">{hppRiil != null ? formatCurrency(hppRiil) : "-"}</p>
           </div>
         </div>
       </div>
 
-      {jobOrder.status === "berjalan" && canInput && <CloseJobOrderForm jobOrderId={jobOrder.id} />}
+      <div className="space-y-3">
+        <p className="text-sm font-medium">Hasil QC</p>
+        {(fgBatches ?? []).length === 0 ? (
+          <p className="text-sm text-stone-400">Belum ada FG yang diterima/di-QC dari job order ini.</p>
+        ) : (
+          <div className="card !p-0 overflow-hidden">
+            {(fgBatches ?? []).map((b) => (
+              <div key={b.id} className="flex items-center justify-between border-b border-stone-100 px-4 py-2.5 text-sm last:border-0">
+                <span className="text-stone-500">{formatWib(b.received_at)}</span>
+                <span className="figure">{b.qty} {skuUnit}</span>
+                <span className={"badge " + (b.qc_status === "lolos" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>
+                  {b.qc_status === "lolos" ? "Lolos QC" : "Reject"}
+                </span>
+                <span className="text-stone-400">{b.expiry_date ?? "-"}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {jobOrder.status === "berjalan" && canInput && <QcForm jobOrderId={jobOrder.id} skuUnit={skuUnit} />}
+      </div>
+
+      {jobOrder.status === "berjalan" && canInput && (
+        <CloseJobOrderForm jobOrderId={jobOrder.id} computedActualOutput={qtyLolos} unit={skuUnit} />
+      )}
 
       <div className="space-y-3">
         <p className="text-sm font-medium">Shipment</p>

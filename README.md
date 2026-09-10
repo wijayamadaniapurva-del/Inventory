@@ -333,3 +333,42 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
   karena stok historisnya tidak tercatat sebagai snapshot.
 - `src/proxy.ts` disesuaikan supaya route di bawah `/api/*` tidak ikut
   diarahkan ke halaman login (cron tidak punya sesi login sama sekali).
+
+## Revisi kesepuluh: QC menggantikan input manual actual output, Audit Trail
+
+- **Alur Job Order berubah**: FG yang balik dari maklon sekarang wajib
+  lewat pencatatan **QC** dulu (lolos / reject, per batch, bisa dicatat
+  beberapa kali untuk pengiriman bertahap) sebelum Job Order bisa
+  ditutup. Actual output **tidak lagi diketik manual** — otomatis
+  dihitung dari total qty yang lolos QC (`fungsi database
+  close_job_order()`).
+- Tiap qty yang lolos QC otomatis menambah stok FG (`submit_qc_batch()`)
+  **dan** ditandai `job_order_id`-nya — begitu juga tiap shipment bahan
+  baku ke maklon (lewat `create_shipment()` yang sudah ada). Ini yang
+  bikin audit trail sekarang bisa ditelusuri per Job Order.
+- **Halaman baru Audit Trail** — daftar semua Job Order dengan ringkasan
+  target vs lolos QC vs reject vs selisih, baris yang ada selisihnya
+  otomatis ditandai warna merah muda. Klik baris untuk buka detail
+  lengkapnya di halaman Job Order.
+- Kolom baru `stock_movements.job_order_id` dan tabel view baru
+  `v_job_order_variance` (dipakai halaman Audit Trail).
+- **Belum diselesaikan** (didiskusikan dulu di chat): variance di titik
+  perpindahan Gudang L2 → L1 belum bisa ditelusuri presisi, karena itu
+  butuh pelacakan stok per-batch (bukan per-SKU teragregasi seperti
+  sekarang) — ini keputusan yang sama dengan pertanyaan kadaluarsa Adele
+  sebelumnya, masih ditunda.
+- **Integrasi RTS dari Scalev** masih belum dibangun (baru sebatas
+  rencana: webhook masuk dari Scalev ke webapp ini, arahnya memang
+  seperti itu sesuai desain awal) — perlu dicek dulu format webhook RTS
+  Scalev yang persis sebelum diimplementasikan.
+
+## Revisi kesebelas: stok dipisah per lantai gudang
+
+- **Stok sekarang dipecah per lantai** (Gudang L2 / Gudang L1), bukan
+  cuma satu angka total — karena FG yang lolos QC tidak otomatis pindah
+  ke L1 (keterbatasan ruang), jadi bisa saja ada stok yang "nyangkut" di
+  L2 menunggu dipindah manual. `v_current_stock` sekarang punya kolom
+  `qty_gudang_l2` dan `qty_gudang_l1` di samping `qty_on_hand` (total,
+  tetap dipakai apa adanya untuk kartu nilai di Dashboard).
+- Halaman Stok menampilkan dua kolom terpisah "Stok L2" dan "Stok L1"
+  untuk semua kategori (bukan cuma FG) — export Excel juga ikut pecah.
