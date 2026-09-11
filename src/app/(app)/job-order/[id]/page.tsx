@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
 import { formatCurrency, formatQty, formatWib } from "@/lib/utils";
-import type { FgBatch, ItemBom, ItemUnit, JobOrder, MasterItem, Shipment } from "@/lib/types";
+import { computeSisaBahan } from "@/lib/sisa-bahan";
+import type { FgBatch, ItemUnit, JobOrder, MasterItem, Shipment } from "@/lib/types";
 import { AddShipmentForm } from "@/components/add-shipment-form";
 import { CloseJobOrderForm } from "@/components/close-job-order-form";
 import { EditServiceFee } from "@/components/edit-service-fee";
@@ -33,7 +34,7 @@ export default async function JobOrderDetailPage({
 
   if (!jobOrder) notFound();
 
-  const [{ data: shipments }, { data: materials }, { data: fgBatches }, { data: bomRows }] = await Promise.all([
+  const [{ data: shipments }, { data: materials }, { data: fgBatches }, { data: bomRows }, { data: stockRows }] = await Promise.all([
     supabase
       .from("shipments")
       .select("id, shipped_at, surat_jalan_no, shipment_items(id, qty, unit_price, material_item_id, master_items(name, unit))")
@@ -56,7 +57,13 @@ export default async function JobOrderDetailPage({
       .from("item_bom")
       .select("id, fg_item_id, material_item_id, ratio_per_unit, master_items!material_item_id(name, unit)")
       .eq("fg_item_id", jobOrder.sku_item_id),
+    supabase.from("v_current_stock").select("item_id, qty_gudang_l2, qty_gudang_l1").returns<{ item_id: string; qty_gudang_l2: number; qty_gudang_l1: number }[]>(),
   ]);
+
+  const stockByItem: Record<string, { l2: number; l1: number }> = {};
+  for (const r of stockRows ?? []) {
+    stockByItem[r.item_id] = { l2: r.qty_gudang_l2, l1: r.qty_gudang_l1 };
+  }
 
   const skuName = jobOrder.master_items?.name ?? "-";
   const skuUnit = jobOrder.master_items?.unit ?? "pcs";
@@ -92,15 +99,7 @@ export default async function JobOrderDetailPage({
       });
     }
   }
-  const sisaRows = ((bomRows ?? []) as unknown as (ItemBom & { master_items: { name: string; unit: string } })[])
-    .map((b) => {
-      const shipped = shippedByMaterial.get(b.material_item_id);
-      if (!shipped) return null;
-      const expectedUsage = b.ratio_per_unit * qtyDiterima;
-      const sisa = shipped.qty - expectedUsage;
-      return { name: shipped.name, unit: shipped.unit, sisa };
-    })
-    .filter((r): r is { name: string; unit: string; sisa: number } => r !== null);
+  const sisaRows = computeSisaBahan(shippedByMaterial, bomRows ?? [], qtyDiterima);
 
   return (
     <div className="space-y-6">
@@ -250,7 +249,7 @@ export default async function JobOrderDetailPage({
         )}
 
         {jobOrder.status === "berjalan" && canInput && (
-          <AddShipmentForm jobOrderId={jobOrder.id} maklonName={maklonName} materials={materials ?? []} />
+          <AddShipmentForm jobOrderId={jobOrder.id} maklonName={maklonName} materials={materials ?? []} stockByItem={stockByItem} />
         )}
       </div>
     </div>

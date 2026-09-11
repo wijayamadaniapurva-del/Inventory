@@ -443,3 +443,25 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
   Vendor Cat): tambah opsi Gudang L2 → Gudang L1, untuk material
   packaging akhir seperti kardus yang dipakai buat packing FG, bukan
   dikirim ke maklon.
+
+## Revisi keenam belas: validasi stok shipment, Resep jadi tabel flat, Audit Trail dengan detail inline
+
+- **Kirim shipment sekarang divalidasi stoknya** — `create_shipment()`
+  menolak kalau qty yang mau dikirim melebihi stok di Gudang L2 (dicek
+  di database, bukan cuma tampilan). Form Tambah Shipment juga sekarang
+  menampilkan stok tiap material di dropdown-nya (`ItemPicker`), sama
+  seperti di Input Stok.
+- **Resep (BOM) tampilannya disederhanakan** — sekarang tabel flat satu
+  layar (kolom: SKU, Bahan baku, Rasio, edit, hapus), tidak perlu pilih
+  SKU dulu buat lihat isinya, mirip pola Master Item.
+- **Audit Trail sekarang bisa dibuka detailnya langsung di tempat**
+  (klik baris untuk expand inline) — termasuk **Perkiraan sisa bahan
+  baku per material**, tidak perlu buka halaman Job Order lagi kecuali
+  mau lihat/ubah lebih detail (tetap ada link "Buka detail lengkap").
+- Fungsi bantu `computeSisaBahan()` (di `lib/sisa-bahan.ts`) dipakai
+  bersama oleh halaman Job Order dan Audit Trail supaya perhitungannya
+  konsisten satu sumber.
+
+**Reset data demo**: lihat instruksi di chat untuk SQL pembersihan
+riwayat/transaksi setelah demo (master item, maklon, resep, dan akun
+tidak ikut terhapus).

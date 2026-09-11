@@ -425,6 +425,8 @@ declare
   v_maklon_id uuid;
   v_sku_name text;
   v_maklon_name text;
+  v_material_name text;
+  v_available numeric;
 begin
   if current_user_role() not in ('spv', 'warehouse_staff') then
     raise exception 'Tidak punya akses untuk menambah shipment.';
@@ -445,8 +447,8 @@ begin
     raise exception 'Job order tidak ditemukan.';
   end if;
 
-  insert into shipments (job_order_id) values (p_job_order_id) returning id into v_shipment_id;
-
+  -- Validate stock BEFORE writing anything, so a shortage on line 3
+  -- doesn't leave lines 1-2 already committed.
   for v_line in select * from jsonb_array_elements(p_lines)
   loop
     v_material_id := (v_line->>'material_item_id')::uuid;
@@ -455,6 +457,21 @@ begin
     if v_material_id is null or v_qty is null or v_qty <= 0 then
       raise exception 'Setiap baris material harus punya qty lebih dari 0.';
     end if;
+
+    select name into v_material_name from master_items where id = v_material_id;
+    select qty_gudang_l2 into v_available from v_current_stock where item_id = v_material_id;
+
+    if coalesce(v_available, 0) < v_qty then
+      raise exception 'Stok % di Gudang L2 cuma % , tidak cukup untuk kirim %.', v_material_name, coalesce(v_available, 0), v_qty;
+    end if;
+  end loop;
+
+  insert into shipments (job_order_id) values (p_job_order_id) returning id into v_shipment_id;
+
+  for v_line in select * from jsonb_array_elements(p_lines)
+  loop
+    v_material_id := (v_line->>'material_item_id')::uuid;
+    v_qty := (v_line->>'qty')::numeric;
 
     select default_price into v_price from master_items where id = v_material_id;
 
