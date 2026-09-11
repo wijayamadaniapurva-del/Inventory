@@ -22,6 +22,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
   const [newUnit, setNewUnit] = useState<ItemUnit>("liter");
   const [newBpom, setNewBpom] = useState<BpomStatus>("bpom");
   const [newPrice, setNewPrice] = useState(0);
+  const [newScalevId, setNewScalevId] = useState("");
   const [saving, setSaving] = useState(false);
 
   const items = initialItems.filter((i) => i.category === category && i.is_active);
@@ -38,12 +39,14 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
       unit: newUnit,
       bpom_tag: newCategory === "fg" ? newBpom : null,
       default_price: newPrice,
+      scalev_product_id: newCategory === "fg" && newScalevId.trim() ? newScalevId.trim() : null,
     });
 
     setSaving(false);
     setShowAddForm(false);
     setNewName("");
     setNewPrice(0);
+    setNewScalevId("");
     router.refresh();
   }
 
@@ -173,6 +176,18 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
               </select>
             </div>
           )}
+          {newCategory === "fg" && (
+            <div>
+              <label className="mb-1 block text-sm text-stone-600">Scalev Product ID (opsional)</label>
+              <input
+                type="text"
+                placeholder="isi kalau sudah tahu ID produknya di Scalev"
+                value={newScalevId}
+                onChange={(e) => setNewScalevId(e.target.value)}
+                className="w-full"
+              />
+            </div>
+          )}
           <div className="flex gap-2">
             <button type="submit" disabled={saving} className="btn-primary flex-1">
               {saving ? "Menyimpan..." : "Simpan item"}
@@ -212,40 +227,54 @@ function ItemRow({
   const [unit, setUnit] = useState<ItemUnit>(item.unit);
   const [bpom, setBpom] = useState<BpomStatus>(item.bpom_tag ?? "bpom");
   const [price, setPrice] = useState(item.default_price);
+  const [scalevId, setScalevId] = useState(item.scalev_product_id ?? "");
 
   const cols = isFg ? "1fr 60px 90px 110px 32px 32px" : "1fr 70px 110px 32px 32px";
 
   if (editing) {
     return (
-      <div className="grid items-center gap-2 border-b border-stone-100 px-4 py-2" style={{ gridTemplateColumns: cols }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} className="!h-8" />
-        <select value={unit} onChange={(e) => setUnit(e.target.value as ItemUnit)} className="!h-8">
-          {UNITS.map((u) => (
-            <option key={u} value={u}>
-              {u}
-            </option>
-          ))}
-        </select>
-        {isFg && (
-          <select value={bpom} onChange={(e) => setBpom(e.target.value as BpomStatus)} className="!h-8 text-xs">
-            <option value="bpom">BPOM</option>
-            <option value="non_bpom">Non-BPOM</option>
+      <div className="space-y-2 border-b border-stone-100 px-4 py-2">
+        <div className="grid items-center gap-2" style={{ gridTemplateColumns: cols }}>
+          <input value={name} onChange={(e) => setName(e.target.value)} className="!h-8" />
+          <select value={unit} onChange={(e) => setUnit(e.target.value as ItemUnit)} className="!h-8">
+            {UNITS.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
           </select>
+          {isFg && (
+            <select value={bpom} onChange={(e) => setBpom(e.target.value as BpomStatus)} className="!h-8 text-xs">
+              <option value="bpom">BPOM</option>
+              <option value="non_bpom">Non-BPOM</option>
+            </select>
+          )}
+          <CurrencyInput value={price} onChange={setPrice} className="!h-8 text-xs" />
+          <button
+            onClick={() => {
+              if (!window.confirm(`Simpan perubahan item "${name}"?`)) return;
+              onSave({ name, unit, bpom_tag: isFg ? bpom : null, default_price: price, scalev_product_id: isFg && scalevId.trim() ? scalevId.trim() : null });
+            }}
+            className="!h-8 !w-8 !border-0 !p-0 text-accent-600"
+            title="Simpan"
+          >
+            ✓
+          </button>
+          <button onClick={onCancel} className="!h-8 !w-8 !border-0 !p-0 text-stone-400" title="Batal">
+            ✕
+          </button>
+        </div>
+        {isFg && (
+          <div className="flex items-center gap-2 pl-1">
+            <label className="text-xs text-stone-500">Scalev Product ID:</label>
+            <input
+              value={scalevId}
+              onChange={(e) => setScalevId(e.target.value)}
+              placeholder="opsional"
+              className="!h-7 max-w-xs text-xs"
+            />
+          </div>
         )}
-        <CurrencyInput value={price} onChange={setPrice} className="!h-8 text-xs" />
-        <button
-          onClick={() => {
-            if (!window.confirm(`Simpan perubahan item "${name}"?`)) return;
-            onSave({ name, unit, bpom_tag: isFg ? bpom : null, default_price: price });
-          }}
-          className="!h-8 !w-8 !border-0 !p-0 text-accent-600"
-          title="Simpan"
-        >
-          ✓
-        </button>
-        <button onClick={onCancel} className="!h-8 !w-8 !border-0 !p-0 text-stone-400" title="Batal">
-          ✕
-        </button>
       </div>
     );
   }

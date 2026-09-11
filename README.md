@@ -465,3 +465,35 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
 **Reset data demo**: lihat instruksi di chat untuk SQL pembersihan
 riwayat/transaksi setelah demo (master item, maklon, resep, dan akun
 tidak ikut terhapus).
+
+## Revisi ketujuh belas: Resep jadi accordion per SKU, mulai integrasi Scalev
+
+- **Resep (BOM)** sekarang tampil per SKU (satu baris per SKU Finish
+  Good), klik untuk buka daftar bahan bakunya — tidak lagi flat semua
+  baris tercampur.
+- **Mulai integrasi Scalev** (baru bagian yang aman dibangun tanpa tahu
+  detail API-nya persis):
+  - Endpoint baru `src/app/api/webhooks/scalev` — siap menerima event
+    dari Scalev, dilindungi shared secret (`SCALEV_WEBHOOK_SECRET`) di
+    URL. Untuk sekarang semua event yang masuk cuma dicatat mentah di
+    tabel `scalev_sync_log` (belum diproses jadi stok) — supaya begitu
+    Scalev kirim event asli, kita bisa lihat bentuk datanya dulu sebelum
+    tulis logika penguraiannya.
+  - Halaman baru **Master Data → Settings → Scalev Log** (`/settings/scalev-log`,
+    tidak ditaruh di tab utama, akses lewat URL langsung) — buat lihat
+    isi mentah log itu.
+  - Field baru **Scalev Product ID** di Master Item (khusus kategori
+    Finish Good, opsional) — buat memetakan SKU ke ID produk di Scalev,
+    disiapkan untuk saat fitur push-stok dibangun nanti.
+- **Push update stok ke Scalev BELUM dibangun** — belum tahu endpoint
+  API persisnya. Setelah webhook di atas jalan dan kita lihat contoh
+  data asli dari Scalev, atau kalau kamu bisa kirim halaman referensi
+  API Scalev (endpoint update stok produk), saya lanjutkan bagian ini.
+
+**Setup di sisi Scalev** (setelah deploy):
+1. Buka Scalev → Settings → Developers
+2. Isi Webhook URL: `https://<domain-vercel-kamu>/api/webhooks/scalev?secret=<SCALEV_WEBHOOK_SECRET>`
+3. Centang event yang berkaitan dengan retur/RTS (nama persisnya perlu
+   dicek di dashboard Scalev-mu)
+4. Tambahkan env var baru di Vercel: `SCALEV_WEBHOOK_SECRET` (karang
+   sendiri, sama seperti `CRON_SECRET`)
