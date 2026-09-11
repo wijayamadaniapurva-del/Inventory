@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/settings/master-item", label: "Master item" },
+  { href: "/settings/resep", label: "Resep (BOM)" },
   { href: "/settings/maklon", label: "Maklon" },
   { href: "/settings/safety-stock", label: "Safety Stock" },
 ];

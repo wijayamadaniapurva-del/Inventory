@@ -2,12 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth";
-import { formatCurrency, formatWib } from "@/lib/utils";
-import type { FgBatch, JobOrder, MasterItem, Shipment } from "@/lib/types";
+import { formatCurrency, formatQty, formatWib } from "@/lib/utils";
+import type { FgBatch, ItemBom, ItemUnit, JobOrder, MasterItem, Shipment } from "@/lib/types";
 import { AddShipmentForm } from "@/components/add-shipment-form";
 import { CloseJobOrderForm } from "@/components/close-job-order-form";
 import { EditServiceFee } from "@/components/edit-service-fee";
 import { QcForm } from "@/components/qc-form";
+import { ReopenJobOrderButton } from "@/components/reopen-job-order-button";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export default async function JobOrderDetailPage({
 
   if (!jobOrder) notFound();
 
-  const [{ data: shipments }, { data: materials }, { data: fgBatches }] = await Promise.all([
+  const [{ data: shipments }, { data: materials }, { data: fgBatches }, { data: bomRows }] = await Promise.all([
     supabase
       .from("shipments")
       .select("id, shipped_at, surat_jalan_no, shipment_items(id, qty, unit_price, material_item_id, master_items(name, unit))")
@@ -51,6 +52,10 @@ export default async function JobOrderDetailPage({
       .eq("job_order_id", id)
       .order("received_at", { ascending: false })
       .returns<FgBatch[]>(),
+    supabase
+      .from("item_bom")
+      .select("id, fg_item_id, material_item_id, ratio_per_unit, master_items!material_item_id(name, unit)")
+      .eq("fg_item_id", jobOrder.sku_item_id),
   ]);
 
   const skuName = jobOrder.master_items?.name ?? "-";
@@ -72,6 +77,30 @@ export default async function JobOrderDetailPage({
   // rejecting part of what was delivered.
   const varianceProduksi = qtyDiterima > 0 || (fgBatches ?? []).length > 0 ? jobOrder.target_output - qtyDiterima : null;
   const hppRiil = displayActualOutput && displayActualOutput > 0 ? totalCost / displayActualOutput : null;
+
+  // Perkiraan sisa material di maklon = total qty dikirim - (resep x qty
+  // diterima, lolos+reject — dua-duanya sama-sama makan material saat
+  // diproduksi). Cuma dihitung kalau resepnya sudah diisi di Master Data.
+  const shippedByMaterial = new Map<string, { name: string; unit: string; qty: number }>();
+  for (const s of shipments ?? []) {
+    for (const li of s.shipment_items ?? []) {
+      const prev = shippedByMaterial.get(li.material_item_id);
+      shippedByMaterial.set(li.material_item_id, {
+        name: li.master_items?.name ?? "-",
+        unit: li.master_items?.unit ?? "",
+        qty: (prev?.qty ?? 0) + li.qty,
+      });
+    }
+  }
+  const sisaRows = ((bomRows ?? []) as unknown as (ItemBom & { master_items: { name: string; unit: string } })[])
+    .map((b) => {
+      const shipped = shippedByMaterial.get(b.material_item_id);
+      if (!shipped) return null;
+      const expectedUsage = b.ratio_per_unit * qtyDiterima;
+      const sisa = shipped.qty - expectedUsage;
+      return { name: shipped.name, unit: shipped.unit, sisa };
+    })
+    .filter((r): r is { name: string; unit: string; sisa: number } => r !== null);
 
   return (
     <div className="space-y-6">
@@ -165,8 +194,33 @@ export default async function JobOrderDetailPage({
         {jobOrder.status === "berjalan" && canInput && <QcForm jobOrderId={jobOrder.id} skuUnit={skuUnit} />}
       </div>
 
+      {sisaRows.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-sm font-medium">Perkiraan sisa bahan baku di Maklon</p>
+          <div className="card !p-0 overflow-hidden">
+            {sisaRows.map((r, idx) => (
+              <div key={idx} className="flex items-center justify-between border-b border-stone-100 px-4 py-2.5 text-sm last:border-0">
+                <span>{r.name}</span>
+                <span className={"figure " + (r.sisa < 0 ? "text-red-600 font-medium" : "text-stone-600")}>
+                  {r.sisa < 0 ? "kurang " : ""}{formatQty(Math.abs(r.sisa), r.unit as ItemUnit)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-stone-400">
+            Dihitung dari resep (Master Data → Resep) × qty diterima dari maklon. Kalau angkanya minus, berarti yang dikirim ternyata kurang dari yang seharusnya dibutuhkan resep.
+          </p>
+        </div>
+      )}
+
       {jobOrder.status === "berjalan" && canInput && (
-        <CloseJobOrderForm jobOrderId={jobOrder.id} computedActualOutput={qtyLolos} unit={skuUnit} />
+        <CloseJobOrderForm jobOrderId={jobOrder.id} computedActualOutput={qtyLolos} qtyReject={qtyReject} unit={skuUnit} />
+      )}
+      {jobOrder.status === "selesai" && canInput && (
+        <div className="card flex items-center justify-between">
+          <p className="text-sm text-stone-500">Job order ini sudah ditutup.</p>
+          <ReopenJobOrderButton jobOrderId={jobOrder.id} />
+        </div>
       )}
 
       <div className="space-y-3">

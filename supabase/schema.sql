@@ -551,6 +551,29 @@ $$;
 revoke all on function close_job_order(uuid) from public;
 grant execute on function close_job_order(uuid) to authenticated;
 
+-- Reopens a closed Job Order so more QC batches can be recorded (e.g.
+-- a reject batch that the maklon later sends back revised). Doesn't
+-- touch stock at all — stock was already added when each QC batch was
+-- submitted, not when the job order was closed, so nothing to undo or
+-- redo here. Closing again just recomputes actual_output from the
+-- (now larger) total of 'lolos' batches.
+create or replace function reopen_job_order(p_job_order_id uuid)
+returns void
+language plpgsql
+security definer
+as $$
+begin
+  if current_user_role() not in ('spv', 'warehouse_staff') then
+    raise exception 'Tidak punya akses untuk membuka kembali job order.';
+  end if;
+
+  update job_orders set status = 'berjalan', closed_at = null where id = p_job_order_id;
+end;
+$$;
+
+revoke all on function reopen_job_order(uuid) from public;
+grant execute on function reopen_job_order(uuid) to authenticated;
+
 create policy "spv and warehouse_staff can insert shipments" on shipments
   for insert with check (current_user_role() in ('spv', 'warehouse_staff'));
 create policy "spv and warehouse_staff can update shipments" on shipments

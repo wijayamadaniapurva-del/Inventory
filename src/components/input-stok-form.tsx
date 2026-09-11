@@ -37,7 +37,7 @@ export function InputStokForm({
   const [itemId, setItemId] = useState<string>("");
   const [qty, setQty] = useState<string>("");
   const [location, setLocation] = useState<LocationType>("gudang_l2");
-  const [packagingToLocation, setPackagingToLocation] = useState<"vendor_cat" | "gudang_l2">("vendor_cat");
+  const [packagingRoute, setPackagingRoute] = useState<"to_vendor_cat" | "from_vendor_cat" | "to_gudang_l1">("to_vendor_cat");
   const [keluarFromLocation, setKeluarFromLocation] = useState<"gudang_l2" | "gudang_l1">("gudang_l2");
   const [keluarDestination, setKeluarDestination] = useState<KeluarDestination>("");
   const [expiryDate, setExpiryDate] = useState("");
@@ -46,25 +46,35 @@ export function InputStokForm({
 
   const categoryOptions = categoriesForType(type);
 
-  function computeFromLocation(cat: ItemCategory, pkgToLoc: "vendor_cat" | "gudang_l2"): LocationType {
+  type PackagingRoute = "to_vendor_cat" | "from_vendor_cat" | "to_gudang_l1";
+
+  function computeFromLocation(cat: ItemCategory, route: PackagingRoute): LocationType {
     if (cat === "fg") return "gudang_l2";
-    return pkgToLoc === "vendor_cat" ? "gudang_l2" : "vendor_cat";
+    if (route === "from_vendor_cat") return "vendor_cat";
+    return "gudang_l2"; // to_vendor_cat or to_gudang_l1 both start from Gudang L2
+  }
+
+  function computeToLocation(cat: ItemCategory, route: PackagingRoute): LocationType {
+    if (cat === "fg") return "gudang_l1";
+    if (route === "to_vendor_cat") return "vendor_cat";
+    if (route === "to_gudang_l1") return "gudang_l1";
+    return "gudang_l2"; // from_vendor_cat
   }
 
   // For Transfer: derive from/to locations from category (+ direction for
   // Packaging) instead of two free-standing dropdowns, so an invalid
   // combination can't be picked in the first place.
-  const transferToLocation: LocationType = category === "fg" ? "gudang_l1" : packagingToLocation;
-  const transferFromLocation: LocationType = computeFromLocation(category, packagingToLocation);
+  const transferToLocation: LocationType = computeToLocation(category, packagingRoute);
+  const transferFromLocation: LocationType = computeFromLocation(category, packagingRoute);
 
   function stockAt(item: MasterItem, loc: "gudang_l2" | "gudang_l1"): number {
     return loc === "gudang_l2" ? (stockByItem[item.id]?.l2 ?? 0) : (stockByItem[item.id]?.l1 ?? 0);
   }
 
-  function itemsAvailable(cat: ItemCategory, nextType: MovementType, pkgToLoc: "vendor_cat" | "gudang_l2", keluarFrom: "gudang_l2" | "gudang_l1") {
+  function itemsAvailable(cat: ItemCategory, nextType: MovementType, route: PackagingRoute, keluarFrom: "gudang_l2" | "gudang_l1") {
     const inCat = items.filter((i) => i.category === cat);
     if (nextType === "transfer") {
-      const from = computeFromLocation(cat, pkgToLoc);
+      const from = computeFromLocation(cat, route);
       if (from === "gudang_l2" || from === "gudang_l1") {
         return inCat.filter((i) => stockAt(i, from) > 0);
       }
@@ -77,8 +87,8 @@ export function InputStokForm({
   }
 
   const itemsInCategory = useMemo(
-    () => itemsAvailable(category, type, packagingToLocation, keluarFromLocation),
-    [items, category, type, packagingToLocation, keluarFromLocation, stockByItem]
+    () => itemsAvailable(category, type, packagingRoute, keluarFromLocation),
+    [items, category, type, packagingRoute, keluarFromLocation, stockByItem]
   );
 
   const selectedItem = itemsInCategory.find((i) => i.id === itemId) ?? itemsInCategory[0];
@@ -86,10 +96,10 @@ export function InputStokForm({
   function resetItemFor(
     nextCategory: ItemCategory,
     nextType: MovementType,
-    pkgToLoc: "vendor_cat" | "gudang_l2" = packagingToLocation,
+    route: PackagingRoute = packagingRoute,
     keluarFrom: "gudang_l2" | "gudang_l1" = keluarFromLocation
   ) {
-    const usable = itemsAvailable(nextCategory, nextType, pkgToLoc, keluarFrom);
+    const usable = itemsAvailable(nextCategory, nextType, route, keluarFrom);
     setItemId(usable[0]?.id ?? "");
   }
 
@@ -103,7 +113,7 @@ export function InputStokForm({
 
   function handleCategoryChange(next: ItemCategory) {
     setCategory(next);
-    if (next === "packaging") setPackagingToLocation("vendor_cat");
+    if (next === "packaging") setPackagingRoute("to_vendor_cat");
     resetItemFor(next, type);
   }
 
@@ -202,7 +212,7 @@ export function InputStokForm({
             onChange={(e) => {
               const next = e.target.value as "gudang_l2" | "gudang_l1";
               setKeluarFromLocation(next);
-              resetItemFor(category, type, packagingToLocation, next);
+              resetItemFor(category, type, packagingRoute, next);
             }}
           >
             <option value="gudang_l2">Gudang lantai 2</option>
@@ -288,15 +298,16 @@ export function InputStokForm({
             <label className="mb-1 block text-sm text-stone-600">Arah transfer</label>
             <select
               className="w-full"
-              value={packagingToLocation}
+              value={packagingRoute}
               onChange={(e) => {
-                const next = e.target.value as "vendor_cat" | "gudang_l2";
-                setPackagingToLocation(next);
+                const next = e.target.value as "to_vendor_cat" | "from_vendor_cat" | "to_gudang_l1";
+                setPackagingRoute(next);
                 resetItemFor(category, type, next);
               }}
             >
-              <option value="vendor_cat">Gudang lantai 2 → Vendor cat</option>
-              <option value="gudang_l2">Vendor cat → Gudang lantai 2</option>
+              <option value="to_vendor_cat">Gudang lantai 2 → Vendor cat</option>
+              <option value="from_vendor_cat">Vendor cat → Gudang lantai 2</option>
+              <option value="to_gudang_l1">Gudang lantai 2 → Gudang lantai 1 (mis. kardus)</option>
             </select>
           </div>
         ))}

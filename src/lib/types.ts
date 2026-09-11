@@ -84,6 +84,14 @@ export interface StockMovement {
   maklon?: Pick<Maklon, "name">;
 }
 
+export interface ItemBom {
+  id: string;
+  fg_item_id: string;
+  material_item_id: string;
+  ratio_per_unit: number;
+  material?: Pick<MasterItem, "name" | "unit">;
+}
+
 export interface FgBatch {
   id: string;
   job_order_id: string | null;

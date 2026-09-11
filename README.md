@@ -422,3 +422,24 @@ disederhanakan dan perlu dilengkapi sebelum benar-benar dipakai harian:
   packaging) — bukan permintaan eksplisit kali ini, tapi konsisten
   dengan pola yang sama di Transfer; gampang dikembalikan kalau
   ternyata masih perlu pilihan lain.
+
+## Revisi kelima belas: buka-lagi Job Order, resep (BOM), transfer packaging ke L1
+
+- **Job Order bisa dibuka lagi** setelah ditutup (tombol "Buka lagi",
+  fungsi `reopen_job_order()`) — untuk kasus reject yang direvisi/
+  dikirim ulang oleh maklon. Stok tidak pernah hilang/muncul-lagi
+  karena penambahan stok terjadi saat QC dicatat, bukan saat job order
+  ditutup — jadi buka-tutup berkali-kali cuma menambah total QC yang
+  terhitung, actual output & HPP otomatis dihitung ulang tiap ditutup.
+- Konfirmasi Tutup Job Order sekarang kasih peringatan kalau masih ada
+  reject yang belum jelas statusnya.
+- **Resep (BOM) — fitur baru** di Master Data → tab "Resep (BOM)":
+  atur berapa bahan baku dibutuhkan per 1 pcs FG. Dipakai di halaman
+  Job Order untuk menghitung **"Perkiraan sisa bahan baku di Maklon"**
+  (qty dikirim − resep × qty diterima) — ini yang sebelumnya jadi
+  lubang besar di alur audit trail (tabel `item_bom` sudah ada dari
+  awal tapi belum pernah dipakai).
+- **Transfer Packaging sekarang punya 3 arah** (sebelumnya cuma ke
+  Vendor Cat): tambah opsi Gudang L2 → Gudang L1, untuk material
+  packaging akhir seperti kardus yang dipakai buat packing FG, bukan
+  dikirim ke maklon.
