@@ -508,3 +508,10 @@ tidak ikut terhapus).
   teknis, cuma diarahkan lewat teks.
 - Tanggal kadaluarsa (opsional) sekarang juga tersedia untuk Finish
   Good di Masuk, sama seperti Bahan baku.
+
+## Revisi kesembilan belas: opsi Gudang L1 di Masuk untuk Finish Good
+
+- Field "Lokasi" di tab Masuk sekarang punya pilihan **Gudang lantai 1**
+  juga, khusus saat kategorinya Finish Good — buat stok awal yang
+  ternyata sudah ada di L1 (bukan cuma L2). Kategori lain (Bahan
+  baku/Packaging) tetap cuma Gudang lantai 2.

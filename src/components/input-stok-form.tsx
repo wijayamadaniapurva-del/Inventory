@@ -115,6 +115,7 @@ export function InputStokForm({
   function handleCategoryChange(next: ItemCategory) {
     setCategory(next);
     if (next === "packaging") setPackagingRoute("to_vendor_cat");
+    if (next !== "fg" && location === "gudang_l1") setLocation("gudang_l2");
     resetItemFor(next, type);
   }
 
@@ -323,6 +324,7 @@ export function InputStokForm({
           <label className="mb-1 block text-sm text-stone-600">Lokasi</label>
           <select className="w-full" value={location} onChange={(e) => setLocation(e.target.value as LocationType)}>
             <option value="gudang_l2">Gudang lantai 2</option>
+            {category === "fg" && <option value="gudang_l1">Gudang lantai 1</option>}
           </select>
         </div>
       )}
