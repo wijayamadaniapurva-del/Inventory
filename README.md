@@ -497,3 +497,14 @@ tidak ikut terhapus).
    dicek di dashboard Scalev-mu)
 4. Tambahkan env var baru di Vercel: `SCALEV_WEBHOOK_SECRET` (karang
    sendiri, sama seperti `CRON_SECRET`)
+
+## Revisi kedelapan belas: Finish Good dibalikin ke Masuk (khusus stok awal)
+
+- **Finish Good muncul lagi di kategori "Masuk"** — untuk mencatat stok
+  yang sudah ada duluan secara fisik sebelum webapp ini dipakai (tidak
+  ada Job Order untuk ditautkan, jadi tidak bisa lewat QC). Muncul
+  catatan kecil di layar mengingatkan supaya produksi rutin berikutnya
+  tetap lewat fitur QC di Job Order, bukan Masuk manual — tidak dikunci
+  teknis, cuma diarahkan lewat teks.
+- Tanggal kadaluarsa (opsional) sekarang juga tersedia untuk Finish
+  Good di Masuk, sama seperti Bahan baku.

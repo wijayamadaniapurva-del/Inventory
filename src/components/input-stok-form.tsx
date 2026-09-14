@@ -11,13 +11,14 @@ import { CATEGORY_LABEL, formatQty } from "@/lib/utils";
 // - Transfer only ever happens for Packaging (botol <-> Vendor Cat) or
 //   Finish Good (Gudang L2 -> L1). Bahan baku never "transfers" between
 //   locations here — it goes straight to a maklon via Job Order & Shipment.
-// - Masuk excludes Finish Good: FG stock now only enters through the QC
-//   feature (tied to a Job Order), never a bare manual entry, so every
-//   unit of FG stays traceable to where it came from.
+// - Masuk includes Finish Good again for one legitimate case: recording
+//   opening stock that already existed physically before this app was
+//   used (no Job Order to tie it to). Regular new production should
+//   still go through the QC feature so it stays traceable — the UI
+//   below nudges toward that without blocking this path entirely.
 // - Keluar stays open to all 3 categories (KOL/karyawan pickup, write-off).
 function categoriesForType(t: MovementType): ItemCategory[] {
   if (t === "transfer") return ["packaging", "fg"];
-  if (t === "masuk") return ["bahan_baku", "packaging"];
   return ["bahan_baku", "packaging", "fg"];
 }
 
@@ -135,7 +136,7 @@ export function InputStokForm({
     selectedItem?.category === "fg" &&
     selectedItem?.bpom_tag === "non_bpom";
 
-  const showExpiryField = type === "masuk" && category === "bahan_baku";
+  const showExpiryField = type === "masuk" && (category === "bahan_baku" || category === "fg");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -200,6 +201,11 @@ export function InputStokForm({
             </option>
           ))}
         </select>
+        {type === "masuk" && category === "fg" && (
+          <p className="mt-1 text-xs text-amber-600">
+            Khusus untuk stok awal yang sudah ada sebelum pakai webapp ini (atau kondisi khusus lain). Untuk hasil produksi rutin dari maklon, gunakan fitur QC di halaman Job Order supaya tetap tertaut & tertelusuri.
+          </p>
+        )}
       </div>
 
       {/* Keluar: pick source floor first — item list + stock shown depend on it */}
