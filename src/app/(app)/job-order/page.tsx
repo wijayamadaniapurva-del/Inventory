@@ -43,7 +43,7 @@ export default async function JobOrderListPage() {
                 <p className="text-sm font-medium">{label}</p>
                 <p className="text-xs text-stone-500">
                   Target {jo.target_output} pcs
-                  {jo.actual_output != null ? ` · Actual ${jo.actual_output} pcs` : ""}
+                  {jo.status === "selesai" && jo.actual_output != null ? ` · Actual ${jo.actual_output} pcs` : ""}
                 </p>
               </div>
               <div className="flex items-center gap-2">

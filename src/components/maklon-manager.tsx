@@ -14,6 +14,7 @@ export function MaklonManager({ initialMaklon }: { initialMaklon: Maklon[] }) {
   const [newEthanol, setNewEthanol] = useState(true);
   const [newBibit, setNewBibit] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const active = initialMaklon.filter((m) => m.is_active);
 
@@ -22,21 +23,34 @@ export function MaklonManager({ initialMaklon }: { initialMaklon: Maklon[] }) {
     if (!newName.trim()) return;
     if (!window.confirm(`Tambah maklon "${newName.trim()}"?`)) return;
     setSaving(true);
+    setAddError(null);
 
-    await supabase.from("maklon").insert({
+    const { error } = await supabase.from("maklon").insert({
       name: newName.trim(),
       needs_ethanol: newEthanol,
       needs_bibit: newBibit,
     });
 
     setSaving(false);
+
+    if (error) {
+      setAddError(
+        error.code === "23505" ? `Maklon dengan nama "${newName.trim()}" sudah ada.` : "Gagal menyimpan: " + error.message
+      );
+      return;
+    }
+
     setShowAddForm(false);
     setNewName("");
     router.refresh();
   }
 
   async function handleUpdate(m: Maklon, patch: Partial<Maklon>) {
-    await supabase.from("maklon").update(patch).eq("id", m.id);
+    const { error } = await supabase.from("maklon").update(patch).eq("id", m.id);
+    if (error) {
+      window.alert(error.code === "23505" ? "Nama itu sudah dipakai maklon lain." : "Gagal menyimpan: " + error.message);
+      return;
+    }
     setEditingId(null);
     router.refresh();
   }
@@ -95,6 +109,7 @@ export function MaklonManager({ initialMaklon }: { initialMaklon: Maklon[] }) {
               Perlu dikirim bibit
             </label>
           </div>
+          {addError && <p className="text-sm text-red-600">{addError}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={saving} className="btn-primary flex-1">
               {saving ? "Menyimpan..." : "Simpan maklon"}

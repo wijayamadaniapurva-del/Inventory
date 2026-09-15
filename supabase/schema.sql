@@ -76,6 +76,11 @@ create table maklon (
   created_at timestamptz not null default now()
 );
 
+-- Prevent accidental double-entry of the same maklon (case-insensitive).
+-- Only enforced among active rows so an archived name can still be
+-- reused later without fighting old history.
+create unique index maklon_name_unique_active_idx on maklon (lower(name)) where is_active;
+
 -- ---------------------------------------------------------------------
 -- Master items: bahan baku, packaging, FG. Category-specific meaning:
 --   - unit varies (Liter / Pcs / Meter), added freely via Settings.
@@ -104,6 +109,11 @@ create table master_items (
   )
 );
 
+-- Prevent accidental double-entry of the same item (case-insensitive).
+-- Only enforced among active rows so an archived name can still be
+-- reused later without fighting old history.
+create unique index master_items_name_unique_active_idx on master_items (lower(name)) where is_active;
+
 -- BOM: ratio of raw material per 1 unit of FG output, per SKU
 -- (every FG SKU has its own ratios — no global ratio).
 create table item_bom (
@@ -131,7 +141,6 @@ create table stock_movements (
   maklon_id uuid references maklon(id),
   note text,
   expiry_date date, -- optional; set on 'masuk' movements for raw materials that expire
-  job_order_id uuid references job_orders(id), -- links this movement to a Job Order for the audit trail (shipments out, QC'd FG in)
   created_by uuid references profiles(id),
   created_at timestamptz not null default now(),
   constraint transfer_needs_both_locations check (
@@ -178,6 +187,8 @@ create table shipments (
   created_at timestamptz not null default now()
 );
 
+create index idx_shipments_job_order on shipments(job_order_id);
+
 create table shipment_items (
   id uuid primary key default gen_random_uuid(),
   shipment_id uuid not null references shipments(id) on delete cascade,
@@ -199,6 +210,16 @@ create table fg_batches (
   expiry_date date,
   received_at timestamptz not null default now()
 );
+
+create index idx_fg_batches_job_order on fg_batches(job_order_id);
+
+-- Deferred from the stock_movements table above — job_orders didn't
+-- exist yet at that point in the file, so this FK has to be added here
+-- instead (this is what actually happened on the live database too,
+-- via an incremental migration; this just makes a from-scratch run of
+-- this file match that same end state without erroring on table order).
+alter table stock_movements add column job_order_id uuid references job_orders(id);
+create index idx_stock_movements_job_order on stock_movements(job_order_id);
 
 -- ---------------------------------------------------------------------
 -- App-wide settings, e.g. the safety-stock formula — user-configurable
@@ -367,7 +388,11 @@ create policy "authenticated can read" on app_settings for select using (auth.ro
 create policy "authenticated can write" on maklon for all using (auth.role() = 'authenticated');
 create policy "authenticated can write" on master_items for all using (auth.role() = 'authenticated');
 create policy "authenticated can write" on item_bom for all using (auth.role() = 'authenticated');
-create policy "authenticated can write" on stock_movements for all using (auth.role() = 'authenticated');
+-- No direct-write policy on stock_movements on purpose. Every legitimate
+-- writer goes through a security-definer function that also checks role
+-- and (where relevant) available stock: create_stock_movement() below
+-- for regular Input Stok, create_shipment()/submit_qc_batch() elsewhere
+-- in this file for the Job Order flows.
 
 -- Job Order / Shipment: real role enforcement, not just hidden UI.
 -- Owner and Finance are view-only here; SPV and Warehouse Staff can
@@ -590,6 +615,69 @@ $$;
 
 revoke all on function reopen_job_order(uuid) from public;
 grant execute on function reopen_job_order(uuid) to authenticated;
+
+-- Records a regular Input Stok movement (Masuk / Transfer / Keluar).
+-- Checks role, and — for anything that REDUCES stock at a warehouse
+-- floor (Keluar, or a Transfer moving material out) — checks that
+-- enough stock actually exists there first. This is the real
+-- enforcement; the item picker in the UI only hides 0-stock items,
+-- it never validated the typed qty against what's on hand.
+create or replace function create_stock_movement(
+  p_item_id uuid,
+  p_movement_type movement_type,
+  p_qty numeric,
+  p_from_location location_type default null,
+  p_to_location location_type default null,
+  p_expiry_date date default null
+)
+returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  v_id uuid;
+  v_item_name text;
+  v_available numeric;
+  v_location_label text;
+begin
+  if current_user_role() not in ('spv', 'warehouse_staff') then
+    raise exception 'Tidak punya akses untuk input stok.';
+  end if;
+
+  if p_qty is null or p_qty <= 0 then
+    raise exception 'Qty harus lebih dari 0.';
+  end if;
+
+  select name into v_item_name from master_items where id = p_item_id;
+  if v_item_name is null then
+    raise exception 'Item tidak ditemukan.';
+  end if;
+
+  if p_movement_type in ('keluar', 'transfer') and p_from_location in ('gudang_l1', 'gudang_l2') then
+    if p_from_location = 'gudang_l2' then
+      select qty_gudang_l2 into v_available from v_current_stock where item_id = p_item_id;
+      v_location_label := 'Gudang L2';
+    else
+      select qty_gudang_l1 into v_available from v_current_stock where item_id = p_item_id;
+      v_location_label := 'Gudang L1';
+    end if;
+
+    if coalesce(v_available, 0) < p_qty then
+      raise exception 'Stok % di % cuma %, tidak cukup untuk % sebanyak %.',
+        v_item_name, v_location_label, coalesce(v_available, 0), p_movement_type, p_qty;
+    end if;
+  end if;
+
+  insert into stock_movements (item_id, movement_type, qty, from_location, to_location, expiry_date)
+  values (p_item_id, p_movement_type, p_qty, p_from_location, p_to_location, p_expiry_date)
+  returning id into v_id;
+
+  return v_id;
+end;
+$$;
+
+revoke all on function create_stock_movement(uuid, movement_type, numeric, location_type, location_type, date) from public;
+grant execute on function create_stock_movement(uuid, movement_type, numeric, location_type, location_type, date) to authenticated;
 
 create policy "spv and warehouse_staff can insert shipments" on shipments
   for insert with check (current_user_role() in ('spv', 'warehouse_staff'));

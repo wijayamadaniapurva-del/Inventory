@@ -515,3 +515,29 @@ tidak ikut terhapus).
   juga, khusus saat kategorinya Finish Good — buat stok awal yang
   ternyata sudah ada di L1 (bukan cuma L2). Kategori lain (Bahan
   baku/Packaging) tetap cuma Gudang lantai 2.
+
+## Revisi kedua puluh: perbaikan dari audit mendalam
+
+- **Job Order dibuka lagi**: halaman daftar sekarang cuma menampilkan
+  angka "Actual output" kalau statusnya benar-benar "selesai" — tidak
+  ada lagi angka basi kelihatan setelah dibuka lagi.
+- **Pola hapus Master Item disamakan dengan Maklon**: sekarang
+  keduanya selalu mengarsipkan (tidak pernah mencoba hapus permanen
+  dulu) — lebih sederhana dan konsisten.
+- **Nama dobel dicegah**: index unik baru (case-insensitive, cuma
+  berlaku untuk item/maklon yang masih aktif) di `master_items.name`
+  dan `maklon.name`. Pesan error yang jelas muncul di form kalau
+  ternyata namanya sudah dipakai.
+- **Index database ditambahkan**: `shipments.job_order_id`,
+  `fg_batches.job_order_id`, `stock_movements.job_order_id`.
+- **Validasi stok di Input Stok** — dipindahkan ke fungsi database baru
+  `create_stock_movement()`, yang mengecek role DAN qty vs stok yang
+  benar-benar tersedia sebelum menyimpan (sebelumnya cuma dropdown Item
+  yang menyembunyikan yang stoknya 0, tapi angka yang diketik user
+  tidak pernah divalidasi). Sekaligus menutup celah bahwa sebelumnya
+  siapa saja yang login (termasuk Owner/Finance) bisa saja input stok
+  langsung lewat API tanpa lewat tampilan.
+- **Bonus (tidak perlu SQL baru dari kamu)**: perbaiki urutan tabel di
+  `schema.sql` supaya kalau suatu saat perlu dijalankan dari nol di
+  project Supabase baru, tidak gagal karena `stock_movements`
+  mereferensikan `job_orders` sebelum tabel itu ada.

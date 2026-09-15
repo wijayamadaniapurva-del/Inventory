@@ -24,6 +24,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
   const [newPrice, setNewPrice] = useState(0);
   const [newScalevId, setNewScalevId] = useState("");
   const [saving, setSaving] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const items = initialItems.filter((i) => i.category === category && i.is_active);
 
@@ -32,8 +33,9 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
     if (!newName.trim()) return;
     if (!window.confirm(`Tambah item "${newName.trim()}" ke kategori ${CATEGORY_LABEL[newCategory]}?`)) return;
     setSaving(true);
+    setAddError(null);
 
-    await supabase.from("master_items").insert({
+    const { error } = await supabase.from("master_items").insert({
       name: newName.trim(),
       category: newCategory,
       unit: newUnit,
@@ -43,6 +45,16 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
     });
 
     setSaving(false);
+
+    if (error) {
+      setAddError(
+        error.code === "23505"
+          ? `Item dengan nama "${newName.trim()}" sudah ada.`
+          : "Gagal menyimpan: " + error.message
+      );
+      return;
+    }
+
     setShowAddForm(false);
     setNewName("");
     setNewPrice(0);
@@ -51,7 +63,11 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
   }
 
   async function handleUpdate(item: MasterItem, patch: Partial<MasterItem>) {
-    await supabase.from("master_items").update(patch).eq("id", item.id);
+    const { error } = await supabase.from("master_items").update(patch).eq("id", item.id);
+    if (error) {
+      window.alert(error.code === "23505" ? "Nama itu sudah dipakai item lain." : "Gagal menyimpan: " + error.message);
+      return;
+    }
     setEditingId(null);
     router.refresh();
   }
@@ -59,18 +75,12 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
   async function handleDelete(item: MasterItem) {
-    // Try a real delete first — foreign keys will reject it if this item
-    // is referenced by any stock movement, shipment, job order, or BOM.
-    // Only when that happens do we fall back to archiving, so items that
-    // were never actually used can be removed for good.
-    const { error } = await supabase.from("master_items").delete().eq("id", item.id);
-
-    if (error) {
-      await supabase.from("master_items").update({ is_active: false }).eq("id", item.id);
-      setStatusMsg(`"${item.name}" sudah pernah dipakai di transaksi, jadi diarsipkan (bukan dihapus permanen).`);
-    } else {
-      setStatusMsg(`"${item.name}" dihapus permanen.`);
-    }
+    // Always archive, never a real delete — consistent with how Maklon
+    // is handled, and safer by default (nothing is ever unrecoverable
+    // through this button; a true delete can still be done directly in
+    // Supabase if genuinely needed for a mistaken entry).
+    await supabase.from("master_items").update({ is_active: false }).eq("id", item.id);
+    setStatusMsg(`"${item.name}" diarsipkan.`);
     router.refresh();
   }
 
@@ -113,7 +123,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
             onCancel={() => setEditingId(null)}
             onSave={(patch) => handleUpdate(item, patch)}
             onDelete={() => {
-              if (!window.confirm(`Hapus item "${item.name}"? Kalau item ini belum pernah dipakai di transaksi apa pun, akan dihapus permanen. Kalau sudah pernah dipakai, akan diarsipkan (tetap tersimpan untuk data lama, hilang dari pilihan baru).`)) return;
+              if (!window.confirm(`Arsipkan item "${item.name}"? Datanya tetap tersimpan untuk riwayat lama, tapi hilang dari pilihan transaksi baru.`)) return;
               handleDelete(item);
             }}
           />
@@ -188,6 +198,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
               />
             </div>
           )}
+          {addError && <p className="text-sm text-red-600">{addError}</p>}
           <div className="flex gap-2">
             <button type="submit" disabled={saving} className="btn-primary flex-1">
               {saving ? "Menyimpan..." : "Simpan item"}

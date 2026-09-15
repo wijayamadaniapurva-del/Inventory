@@ -148,15 +148,15 @@ export function InputStokForm({
     setSaving(true);
     setMessage(null);
 
-    const { error } = await supabase.from("stock_movements").insert({
-      item_id: selectedItem.id,
-      movement_type: type,
-      qty: Number(qty),
-      from_location:
+    const { error } = await supabase.rpc("create_stock_movement", {
+      p_item_id: selectedItem.id,
+      p_movement_type: type,
+      p_qty: Number(qty),
+      p_from_location:
         type === "transfer" ? transferFromLocation : type === "keluar" ? keluarFromLocation : null,
-      to_location:
+      p_to_location:
         type === "transfer" ? transferToLocation : type === "masuk" ? location : type === "keluar" && keluarDestination ? keluarDestination : null,
-      expiry_date: showExpiryField && expiryDate ? expiryDate : null,
+      p_expiry_date: showExpiryField && expiryDate ? expiryDate : null,
     });
 
     setSaving(false);
