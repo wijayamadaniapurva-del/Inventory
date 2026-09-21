@@ -541,3 +541,20 @@ tidak ikut terhapus).
   `schema.sql` supaya kalau suatu saat perlu dijalankan dari nol di
   project Supabase baru, tidak gagal karena `stock_movements`
   mereferensikan `job_orders` sebelum tabel itu ada.
+
+## Revisi kedua puluh satu: rincian tanggal kadaluarsa per item di Stok (FEFO)
+
+- **Klik baris item di halaman Stok** untuk buka rincian stok per
+  tanggal kadaluarsa (Gudang L1 + L2 digabung). Tanggal yang sama pada
+  item yang sama otomatis digabung jadi satu baris; tanggal berbeda
+  tetap terpisah.
+- Karena tidak ada pencatatan batch/lot yang sesungguhnya dari awal,
+  rincian ini adalah **simulasi FEFO** (`lib/fefo.ts`): setiap barang
+  keluar dianggap mengambil dari batch yang kadaluarsanya paling dekat
+  dulu. Totalnya selalu akurat (cocok dengan Stok L1+L2 yang sudah ada);
+  pembagian per tanggalnya adalah estimasi yang masuk akal, bukan
+  pelacakan presisi.
+- Dihitung on-demand (baru fetch & proses saat barisnya diklik), tidak
+  membebani halaman Stok saat pertama dibuka.
+- Tidak ada perubahan skema database — murni menghitung ulang dari data
+  `stock_movements` yang sudah ada.

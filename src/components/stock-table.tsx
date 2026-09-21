@@ -5,12 +5,14 @@ import type { CurrentStockRow, ItemCategory } from "@/lib/types";
 import { CATEGORY_LABEL, formatCurrency, formatQty } from "@/lib/utils";
 import { computeSafetyStock } from "@/lib/safety-stock";
 import { ExportExcelButton } from "@/components/export-excel-button";
+import { ExpiryBreakdown } from "@/components/expiry-breakdown";
 
 const CATEGORIES: ItemCategory[] = ["bahan_baku", "packaging", "fg"];
 type TabValue = ItemCategory | "all";
 
 export function StockTable({ rows, bufferPercent }: { rows: CurrentStockRow[]; bufferPercent: number }) {
   const [tab, setTab] = useState<TabValue>("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const isFg = tab === "fg";
   const isAll = tab === "all";
 
@@ -65,6 +67,7 @@ export function StockTable({ rows, bufferPercent }: { rows: CurrentStockRow[]; b
           <ExportExcelButton rows={exportRows} filename="stok-purvu.xlsx" sheetName="Stok" />
         </div>
       </div>
+      <p className="mb-2 text-xs text-stone-400">Klik satu baris untuk lihat rincian per tanggal kadaluarsa.</p>
 
       <div className="card !p-0 overflow-hidden">
         <div className="grid gap-2 border-b border-stone-200 px-4 py-2 text-xs text-stone-500" style={{ gridTemplateColumns: cols }}>
@@ -79,19 +82,28 @@ export function StockTable({ rows, bufferPercent }: { rows: CurrentStockRow[]; b
 
         {filtered.map((r) => {
           const flag = belowSafety(r);
+          const isOpen = expandedId === r.item_id;
           return (
-            <div key={r.item_id} className="grid items-center gap-2 border-b border-stone-100 px-4 py-2.5 text-sm last:border-0" style={{ gridTemplateColumns: cols }}>
-              {isAll && <span className="text-stone-500">{CATEGORY_LABEL[r.category]}</span>}
-              <span>{r.name}</span>
-              <span className={"figure " + (flag ? "text-red-600 font-medium" : "")}>{formatQty(r.qty_gudang_l2, r.unit)}</span>
-              <span className={"figure " + (flag ? "text-red-600 font-medium" : "")}>{formatQty(r.qty_gudang_l1, r.unit)}</span>
-              {isFg && r.category === "fg" && (
-                <span className={"badge " + (r.bpom_tag === "bpom" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
-                  {r.bpom_tag === "bpom" ? "BPOM" : "Non-BPOM"}
-                </span>
-              )}
-              <span className="figure text-stone-500">{formatCurrency(r.default_price)}</span>
-              <span className="figure">{formatCurrency(r.qty_on_hand * r.default_price)}</span>
+            <div key={r.item_id} className="border-b border-stone-100 last:border-0">
+              <button
+                type="button"
+                onClick={() => setExpandedId(isOpen ? null : r.item_id)}
+                className="!h-auto !rounded-none !border-0 grid w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-normal !bg-white hover:!bg-stone-50"
+                style={{ gridTemplateColumns: cols }}
+              >
+                {isAll && <span className="text-stone-500">{CATEGORY_LABEL[r.category]}</span>}
+                <span>{r.name}</span>
+                <span className={"figure " + (flag ? "text-red-600 font-medium" : "")}>{formatQty(r.qty_gudang_l2, r.unit)}</span>
+                <span className={"figure " + (flag ? "text-red-600 font-medium" : "")}>{formatQty(r.qty_gudang_l1, r.unit)}</span>
+                {isFg && r.category === "fg" && (
+                  <span className={"badge w-fit " + (r.bpom_tag === "bpom" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700")}>
+                    {r.bpom_tag === "bpom" ? "BPOM" : "Non-BPOM"}
+                  </span>
+                )}
+                <span className="figure text-stone-500">{formatCurrency(r.default_price)}</span>
+                <span className="figure">{formatCurrency(r.qty_on_hand * r.default_price)}</span>
+              </button>
+              {isOpen && <ExpiryBreakdown itemId={r.item_id} unit={r.unit} />}
             </div>
           );
         })}
