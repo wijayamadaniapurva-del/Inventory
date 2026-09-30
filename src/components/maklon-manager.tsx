@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Maklon } from "@/lib/types";
+import { Pagination } from "@/components/pagination";
+import { usePaged } from "@/lib/use-paged";
 
 export function MaklonManager({ initialMaklon }: { initialMaklon: Maklon[] }) {
   const router = useRouter();
@@ -17,6 +19,7 @@ export function MaklonManager({ initialMaklon }: { initialMaklon: Maklon[] }) {
   const [addError, setAddError] = useState<string | null>(null);
 
   const active = initialMaklon.filter((m) => m.is_active);
+  const { page, setPage, pageCount, pageRows, total } = usePaged(active, "maklon");
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -71,7 +74,7 @@ export function MaklonManager({ initialMaklon }: { initialMaklon: Maklon[] }) {
           <span></span>
         </div>
 
-        {active.map((m) => (
+        {pageRows.map((m) => (
           <MaklonRow
             key={m.id}
             maklon={m}
@@ -84,6 +87,10 @@ export function MaklonManager({ initialMaklon }: { initialMaklon: Maklon[] }) {
         ))}
 
         {active.length === 0 && <p className="px-4 py-6 text-sm text-stone-400">Belum ada maklon.</p>}
+
+        {active.length > 0 && (
+          <Pagination page={page} pageCount={pageCount} total={total} onPageChange={setPage} />
+        )}
       </div>
 
       {showAddForm ? (

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { formatQty, formatWib } from "@/lib/utils";
 import type { ItemUnit } from "@/lib/types";
 import type { SisaRow } from "@/lib/sisa-bahan";
+import { Pagination } from "@/components/pagination";
+import { usePaged } from "@/lib/use-paged";
 
 export interface AuditRow {
   id: string;
@@ -21,6 +23,7 @@ export interface AuditRow {
 
 export function AuditTrailTable({ rows }: { rows: AuditRow[] }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { page, setPage, pageCount, pageRows, total } = usePaged(rows, "audit");
 
   return (
     <div className="card !p-0 overflow-hidden">
@@ -33,7 +36,7 @@ export function AuditTrailTable({ rows }: { rows: AuditRow[] }) {
         <span>Status</span>
       </div>
 
-      {rows.map((r) => {
+      {pageRows.map((r) => {
         const variance = r.targetOutput - r.qtyLolos;
         const hasVariance = variance > 0;
         const isOpen = expandedId === r.id;
@@ -100,6 +103,10 @@ export function AuditTrailTable({ rows }: { rows: AuditRow[] }) {
       })}
 
       {rows.length === 0 && <p className="px-4 py-6 text-sm text-stone-400">Belum ada job order.</p>}
+
+      {rows.length > 0 && (
+        <Pagination page={page} pageCount={pageCount} total={total} onPageChange={setPage} />
+      )}
     </div>
   );
 }

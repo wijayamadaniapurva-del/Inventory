@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { BpomStatus, ItemCategory, ItemUnit, MasterItem } from "@/lib/types";
 import { CATEGORY_LABEL, formatCurrency } from "@/lib/utils";
 import { CurrencyInput } from "@/components/currency-input";
+import { Pagination } from "@/components/pagination";
+import { usePaged } from "@/lib/use-paged";
 
 const CATEGORIES: ItemCategory[] = ["bahan_baku", "packaging", "fg"];
 const UNITS: ItemUnit[] = ["liter", "pcs", "meter"];
@@ -27,6 +29,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
   const [addError, setAddError] = useState<string | null>(null);
 
   const items = initialItems.filter((i) => i.category === category && i.is_active);
+  const { page, setPage, pageCount, pageRows, total } = usePaged(items, category);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -113,7 +116,7 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
           <span></span>
         </div>
 
-        {items.map((item) => (
+        {pageRows.map((item) => (
           <ItemRow
             key={item.id}
             item={item}
@@ -131,6 +134,10 @@ export function MasterItemManager({ initialItems }: { initialItems: MasterItem[]
 
         {items.length === 0 && (
           <p className="px-4 py-6 text-sm text-stone-400">Belum ada item di kategori ini.</p>
+        )}
+
+        {items.length > 0 && (
+          <Pagination page={page} pageCount={pageCount} total={total} onPageChange={setPage} />
         )}
       </div>
 

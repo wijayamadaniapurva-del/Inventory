@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { CATEGORY_LABEL, formatCurrency, formatQty } from "@/lib/utils";
 import { ExportExcelButton } from "@/components/export-excel-button";
+import { Pagination } from "@/components/pagination";
+import { usePaged } from "@/lib/use-paged";
 import type { ItemCategory, ItemUnit } from "@/lib/types";
 
 export interface SnapshotRow {
@@ -30,6 +32,7 @@ export function MonthlyRecapTable({
   const [selectedMonth, setSelectedMonth] = useState(months[0] ?? "");
   const rows = rowsByMonth[selectedMonth] ?? [];
   const total = useMemo(() => rows.reduce((sum, r) => sum + r.value, 0), [rows]);
+  const { page, setPage, pageCount, pageRows, total: rowCount } = usePaged(rows, selectedMonth);
 
   const exportRows = rows.map((r) => ({
     Kategori: CATEGORY_LABEL[r.category],
@@ -78,7 +81,7 @@ export function MonthlyRecapTable({
           <span>Harga</span>
           <span>Nilai</span>
         </div>
-        {rows.map((r) => (
+        {pageRows.map((r) => (
           <div key={r.item_id} className="grid grid-cols-[100px_1fr_110px_110px_130px] items-center gap-2 border-b border-stone-100 px-4 py-2.5 text-sm last:border-0">
             <span className="text-stone-500">{CATEGORY_LABEL[r.category]}</span>
             <span>{r.item_name}</span>
@@ -87,6 +90,10 @@ export function MonthlyRecapTable({
             <span className="figure">{formatCurrency(r.value)}</span>
           </div>
         ))}
+
+        {rows.length > 0 && (
+          <Pagination page={page} pageCount={pageCount} total={rowCount} onPageChange={setPage} />
+        )}
       </div>
     </div>
   );

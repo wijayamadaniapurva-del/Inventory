@@ -1,16 +1,30 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { PaginationLinks } from "@/components/pagination";
+import { PAGE_SIZE, pageCountOf, parsePage } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 
-export default async function ScalevLogPage() {
+export default async function ScalevLogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
+
+  const { count } = await supabase.from("scalev_sync_log").select("id", { count: "exact", head: true });
+
+  const total = count ?? 0;
+  const pageCount = pageCountOf(total);
+  const page = parsePage(params.page, pageCount);
+  const from = (page - 1) * PAGE_SIZE;
 
   const { data: logs } = await supabase
     .from("scalev_sync_log")
     .select("id, direction, payload, status, created_at")
     .order("created_at", { ascending: false })
-    .limit(50);
+    .range(from, from + PAGE_SIZE - 1);
 
   return (
     <div>
@@ -47,6 +61,12 @@ export default async function ScalevLogPage() {
           </div>
         ))}
         {(!logs || logs.length === 0) && <p className="text-sm text-stone-400">Belum ada event yang tercatat.</p>}
+
+        {total > 0 && (
+          <div className="card !p-0">
+            <PaginationLinks page={page} pageCount={pageCount} total={total} basePath="/settings/scalev-log" />
+          </div>
+        )}
       </div>
     </div>
   );

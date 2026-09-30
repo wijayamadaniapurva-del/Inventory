@@ -4,15 +4,32 @@ import { getCurrentProfile } from "@/lib/auth";
 import type { JobOrder, Maklon, MasterItem } from "@/lib/types";
 import { NewJobOrderForm } from "@/components/new-job-order-form";
 import { DeleteJobOrderButton } from "@/components/delete-job-order-button";
+import { PaginationLinks } from "@/components/pagination";
+import { PAGE_SIZE, pageCountOf, parsePage } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 
-export default async function JobOrderListPage() {
+export default async function JobOrderListPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const profile = await getCurrentProfile();
   const role = profile?.role ?? "warehouse_staff";
   const canInput = role === "spv" || role === "warehouse_staff";
   const canDelete = role === "spv";
+
+  const { count } = await supabase
+    .from("job_orders")
+    .select("id", { count: "exact", head: true })
+    .is("deleted_at", null);
+
+  const total = count ?? 0;
+  const pageCount = pageCountOf(total);
+  const page = parsePage(params.page, pageCount);
+  const from = (page - 1) * PAGE_SIZE;
 
   const [{ data: jobOrders }, { data: fgItems }, { data: maklonList }] = await Promise.all([
     supabase
@@ -20,6 +37,7 @@ export default async function JobOrderListPage() {
       .select("id, target_output, actual_output, status, opened_at, master_items(name), maklon(name)")
       .is("deleted_at", null)
       .order("opened_at", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1)
       .returns<JobOrder[]>(),
     supabase.from("master_items").select("id, name").eq("category", "fg").eq("is_active", true).returns<Pick<MasterItem, "id" | "name">[]>(),
     supabase.from("maklon").select("id, name").eq("is_active", true).returns<Pick<Maklon, "id" | "name">[]>(),
@@ -62,6 +80,12 @@ export default async function JobOrderListPage() {
         })}
         {(!jobOrders || jobOrders.length === 0) && (
           <p className="text-sm text-stone-400">Belum ada job order.</p>
+        )}
+
+        {total > 0 && (
+          <div className="card !p-0">
+            <PaginationLinks page={page} pageCount={pageCount} total={total} basePath="/job-order" />
+          </div>
         )}
       </div>
     </div>

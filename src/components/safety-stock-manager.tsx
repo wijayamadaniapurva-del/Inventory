@@ -6,6 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { ItemCategory, MasterItem } from "@/lib/types";
 import { CATEGORY_LABEL, formatQty } from "@/lib/utils";
 import { computeSafetyStock } from "@/lib/safety-stock";
+import { Pagination } from "@/components/pagination";
+import { usePaged } from "@/lib/use-paged";
 
 const CATEGORIES: ItemCategory[] = ["bahan_baku", "packaging", "fg"];
 
@@ -23,6 +25,7 @@ export function SafetyStockManager({
   const [savingBuffer, setSavingBuffer] = useState(false);
 
   const items = initialItems.filter((i) => i.category === category && i.is_active);
+  const { page, setPage, pageCount, pageRows, total } = usePaged(items, category);
 
   async function handleSaveBuffer() {
     if (!window.confirm(`Simpan faktor buffer ${bufferPercent}% untuk semua item?`)) return;
@@ -74,10 +77,13 @@ export function SafetyStockManager({
           <span>Lead time (hari)</span>
           <span>Safety stock</span>
         </div>
-        {items.map((item) => (
+        {pageRows.map((item) => (
           <SafetyStockRow key={item.id} item={item} bufferPercent={Number(bufferPercent || 0)} />
         ))}
         {items.length === 0 && <p className="px-4 py-6 text-sm text-stone-400">Belum ada item di kategori ini.</p>}
+        {items.length > 0 && (
+          <Pagination page={page} pageCount={pageCount} total={total} onPageChange={setPage} />
+        )}
       </div>
     </div>
   );
