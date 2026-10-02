@@ -1,44 +1,246 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
+import { decideAction, parseScalevPayload, type ParsedLine } from "@/lib/scalev-payload";
 
 export const dynamic = "force-dynamic";
 
-// Scalev's webhook URL should be set to:
-//   https://<your-domain>/api/webhooks/scalev?secret=<SCALEV_WEBHOOK_SECRET>
-// (configured in Scalev dashboard: Settings -> Developers -> Webhook URL).
-// The secret is just a shared password so random people can't post fake
-// events here — it's not Scalev's own signing mechanism (we don't yet
-// know if Scalev signs its webhook payloads; if their docs specify a
-// signature header, add that check here too before going live).
+// Scalev webhook URL (Scalev dashboard: Settings -> Developers):
+//   https://<domain>/api/webhooks/scalev?secret=<SCALEV_WEBHOOK_SECRET>
+// The secret can also be sent as an "x-webhook-secret" header or as
+// "Authorization: Bearer <secret>", since not every dashboard lets you
+// keep a query string on the URL.
+//
+// Stock effect: a sale leaves Gudang L1 (FG sits there after QC), a
+// return/cancellation comes back into Gudang L1. Which statuses count
+// is decided in lib/scalev-payload.ts.
+const SALE_LOCATION = "gudang_l1" as const;
+
+function readSecret(request: NextRequest): string | null {
+  const fromQuery = request.nextUrl.searchParams.get("secret");
+  if (fromQuery) return fromQuery;
+
+  const header = request.headers.get("x-webhook-secret") ?? request.headers.get("x-scalev-secret");
+  if (header) return header;
+
+  const auth = request.headers.get("authorization");
+  if (auth?.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
+
+  return null;
+}
+
+// Scalev (and most dashboards) ping the URL with a GET when you save it.
+// Answering 200 here is what makes the endpoint "connect".
+export async function GET() {
+  return NextResponse.json({ ok: true, endpoint: "scalev-webhook", method: "POST" });
+}
+
+export async function HEAD() {
+  return new Response(null, { status: 200 });
+}
+
 export async function POST(request: NextRequest) {
-  const secret = request.nextUrl.searchParams.get("secret");
-  if (secret !== process.env.SCALEV_WEBHOOK_SECRET) {
+  const expected = process.env.SCALEV_WEBHOOK_SECRET;
+  const supabase = createServiceClient();
+
+  async function log(fields: {
+    direction: "receive_order" | "receive_rts";
+    status: "success" | "failed" | "skipped" | "pending";
+    note: string;
+    payload: unknown;
+    eventKey?: string | null;
+  }) {
+    const { error } = await supabase.from("scalev_sync_log").insert({
+      direction: fields.direction,
+      status: fields.status,
+      note: fields.note,
+      payload: (fields.payload ?? {}) as Record<string, unknown>,
+      event_key: fields.eventKey ?? null,
+    });
+    return error;
+  }
+
+  // Misconfiguration is the likeliest reason a webhook "can't connect",
+  // so it gets its own answer instead of a blanket 401.
+  if (!expected) {
+    await log({
+      direction: "receive_order",
+      status: "failed",
+      note: "SCALEV_WEBHOOK_SECRET belum di-set di environment Vercel.",
+      payload: {},
+    });
+    return NextResponse.json({ error: "Webhook secret not configured on server" }, { status: 503 });
+  }
+
+  if (readSecret(request) !== expected) {
+    await log({
+      direction: "receive_order",
+      status: "failed",
+      note: "Secret salah atau tidak dikirim. Cek URL webhook di Scalev.",
+      payload: {},
+    });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const raw = await request.text();
   let payload: unknown;
   try {
-    payload = await request.json();
+    payload = raw ? JSON.parse(raw) : {};
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    await log({
+      direction: "receive_order",
+      status: "failed",
+      note: "Body bukan JSON yang valid.",
+      payload: { raw: raw.slice(0, 2000) },
+    });
+    // 200, not 400: the body is already logged, and a 4xx just makes
+    // Scalev retry the same broken payload or mark the endpoint dead.
+    return NextResponse.json({ ok: false, reason: "invalid-json" });
   }
 
-  const supabase = createServiceClient();
-
-  // Everything gets logged raw for now, status 'pending'. Once we know
-  // the exact event/field names Scalev sends for a return (RTS), this
-  // is the place to add: parse payload -> find the matching master_item
-  // via scalev_product_id -> insert a stock_movements row (masuk, to
-  // gudang_l1, note 'RTS dari Scalev') -> mark this row 'success'.
-  const { error } = await supabase.from("scalev_sync_log").insert({
-    direction: "receive_rts",
-    payload: payload as Record<string, unknown>,
-    status: "pending",
+  const event = parseScalevPayload(payload);
+  const { action, reason } = decideAction(event, {
+    keluar: process.env.SCALEV_STATUS_KELUAR,
+    masuk: process.env.SCALEV_STATUS_MASUK,
   });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (action === "ignore") {
+    await log({ direction: "receive_order", status: "skipped", note: reason, payload });
+    return NextResponse.json({ ok: true, skipped: reason });
   }
 
-  return NextResponse.json({ ok: true });
+  const direction = action === "masuk" ? "receive_rts" : "receive_order";
+
+  if (event.lines.length === 0) {
+    await log({
+      direction,
+      status: "failed",
+      note: "Status cocok, tapi daftar produk tidak ditemukan di payload. Perlu dicek strukturnya.",
+      payload,
+    });
+    return NextResponse.json({ ok: false, reason: "no-lines" });
+  }
+
+  // Idempotency gate. The insert happens BEFORE any stock is moved: if
+  // this exact order+action was already handled, the unique index on
+  // event_key rejects it and we stop here instead of deducting twice.
+  const eventKey = event.orderId ? `${event.orderId}:${action}` : null;
+  if (eventKey) {
+    const { error } = await supabase.from("scalev_sync_log").insert({
+      direction,
+      status: "pending",
+      note: reason,
+      payload: payload as Record<string, unknown>,
+      event_key: eventKey,
+    });
+    if (error) {
+      if (error.code === "23505") {
+        return NextResponse.json({ ok: true, skipped: "duplicate", event_key: eventKey });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+  }
+
+  async function finish(status: "success" | "failed" | "skipped", note: string) {
+    if (eventKey) {
+      await supabase.from("scalev_sync_log").update({ status, note }).eq("event_key", eventKey);
+    } else {
+      await log({ direction, status, note, payload });
+    }
+  }
+
+  const { data: items, error: itemsError } = await supabase
+    .from("master_items")
+    .select("id, name, scalev_product_id")
+    .eq("is_active", true);
+
+  if (itemsError) {
+    await finish("failed", "Gagal baca master item: " + itemsError.message);
+    return NextResponse.json({ error: itemsError.message }, { status: 500 });
+  }
+
+  const byScalevId = new Map<string, string>();
+  const byName = new Map<string, string>();
+  for (const it of items ?? []) {
+    if (it.scalev_product_id) byScalevId.set(String(it.scalev_product_id).toLowerCase(), it.id);
+    byName.set(it.name.toLowerCase().trim(), it.id);
+  }
+
+  function matchItem(line: ParsedLine): string | null {
+    if (line.productId) {
+      const hit = byScalevId.get(line.productId.toLowerCase());
+      if (hit) return hit;
+    }
+    if (line.name) {
+      const hit = byName.get(line.name.toLowerCase().trim());
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  const movements: {
+    item_id: string;
+    movement_type: "masuk" | "keluar";
+    qty: number;
+    from_location: typeof SALE_LOCATION | null;
+    to_location: typeof SALE_LOCATION | "customer" | null;
+    note: string;
+  }[] = [];
+  const unmatched: string[] = [];
+
+  for (const line of event.lines) {
+    const itemId = matchItem(line);
+    if (!itemId) {
+      unmatched.push(line.name ?? line.productId ?? "(tanpa nama)");
+      continue;
+    }
+    movements.push(
+      action === "keluar"
+        ? {
+            item_id: itemId,
+            movement_type: "keluar",
+            qty: line.qty,
+            from_location: SALE_LOCATION,
+            to_location: "customer",
+            note: `Scalev order ${event.orderId ?? "-"}`,
+          }
+        : {
+            item_id: itemId,
+            movement_type: "masuk",
+            qty: line.qty,
+            from_location: null,
+            to_location: SALE_LOCATION,
+            note: `Scalev retur/batal order ${event.orderId ?? "-"}`,
+          },
+    );
+  }
+
+  if (movements.length === 0) {
+    await finish(
+      "failed",
+      `Tidak ada produk yang cocok dengan master item: ${unmatched.join(", ")}. ` +
+        "Isi Scalev Product ID di Master Data, atau samakan nama itemnya.",
+    );
+    return NextResponse.json({ ok: false, reason: "no-match", unmatched });
+  }
+
+  // Written with the service role, so this bypasses RLS on purpose —
+  // there's no logged-in user behind a webhook. That also means the
+  // stock check inside create_stock_movement() doesn't apply here, and
+  // that's deliberate: a sale that already happened in Scalev should
+  // still be recorded even if our stock figure says there isn't enough.
+  // It shows up as negative stock, which is the signal that something
+  // upstream needs fixing.
+  const { error: moveError } = await supabase.from("stock_movements").insert(movements);
+
+  if (moveError) {
+    await finish("failed", "Gagal tulis pergerakan stok: " + moveError.message);
+    return NextResponse.json({ error: moveError.message }, { status: 500 });
+  }
+
+  const note =
+    `${reason} ${movements.length} baris stok tercatat.` +
+    (unmatched.length > 0 ? ` Tidak cocok: ${unmatched.join(", ")}.` : "");
+  await finish(unmatched.length > 0 ? "skipped" : "success", note);
+
+  return NextResponse.json({ ok: true, moved: movements.length, unmatched });
 }

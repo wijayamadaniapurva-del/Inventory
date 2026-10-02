@@ -24,6 +24,24 @@ function categoriesForType(t: MovementType): ItemCategory[] {
 
 type KeluarDestination = "" | "customer" | "kol_karyawan";
 
+// Light tints only — enough to tell the three apart at a glance without
+// competing with the status colours used elsewhere in the app.
+// Masuk = hijau, Keluar = merah, Transfer = biru (accent).
+const TYPE_STYLE: Record<MovementType, { active: string; idle: string }> = {
+  masuk: {
+    active: "!border-emerald-500 !bg-emerald-50 !text-emerald-700",
+    idle: "!text-emerald-700 hover:!bg-emerald-50/60",
+  },
+  transfer: {
+    active: "!border-accent-500 !bg-accent-50 !text-accent-700",
+    idle: "!text-accent-600 hover:!bg-accent-50/60",
+  },
+  keluar: {
+    active: "!border-red-400 !bg-red-50 !text-red-700",
+    idle: "!text-red-600 hover:!bg-red-50/60",
+  },
+};
+
 export function InputStokForm({
   items,
   stockByItem,
@@ -180,8 +198,7 @@ export function InputStokForm({
             key={t}
             onClick={() => handleTypeChange(t)}
             className={
-              "flex-1 capitalize " +
-              (type === t ? "!border-accent-600 !bg-accent-50 !text-accent-700" : "")
+              "flex-1 capitalize " + (type === t ? TYPE_STYLE[t].active : TYPE_STYLE[t].idle)
             }
           >
             {t}

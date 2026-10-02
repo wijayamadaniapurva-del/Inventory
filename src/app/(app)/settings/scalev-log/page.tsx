@@ -22,7 +22,7 @@ export default async function ScalevLogPage({
 
   const { data: logs } = await supabase
     .from("scalev_sync_log")
-    .select("id, direction, payload, status, created_at")
+    .select("id, direction, payload, status, note, event_key, created_at")
     .order("created_at", { ascending: false })
     .range(from, from + PAGE_SIZE - 1);
 
@@ -41,7 +41,10 @@ export default async function ScalevLogPage({
         {(logs ?? []).map((log) => (
           <div key={log.id} className="card">
             <div className="mb-1 flex items-center justify-between text-xs text-stone-500">
-              <span>{log.direction}</span>
+              <span>
+                {log.direction}
+                {log.event_key ? ` · ${log.event_key}` : ""}
+              </span>
               <span
                 className={
                   "badge " +
@@ -49,12 +52,15 @@ export default async function ScalevLogPage({
                     ? "bg-emerald-50 text-emerald-700"
                     : log.status === "failed"
                       ? "bg-red-50 text-red-700"
+                      : log.status === "skipped"
+                      ? "bg-stone-100 text-stone-600"
                       : "bg-amber-50 text-amber-700")
                 }
               >
                 {log.status}
               </span>
             </div>
+            {log.note && <p className="mb-2 text-sm text-stone-700">{log.note}</p>}
             <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded-md bg-stone-50 p-2 text-xs text-stone-700">
               {JSON.stringify(log.payload, null, 2)}
             </pre>
