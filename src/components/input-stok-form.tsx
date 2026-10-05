@@ -133,21 +133,30 @@ export function InputStokForm({
   function handleCategoryChange(next: ItemCategory) {
     setCategory(next);
     if (next === "packaging") setPackagingRoute("to_vendor_cat");
-    if (next !== "fg" && location === "gudang_l1") setLocation("gudang_l2");
+    // Bahan baku only ever lands in Gudang L2 (it leaves for the maklon
+    // from there), so switching to it drops an L1 choice made earlier.
+    if (next === "bahan_baku" && location === "gudang_l1") setLocation("gudang_l2");
     resetItemFor(next, type);
   }
 
   // Item picker options with a right-aligned stock figure — Masuk keeps
   // the plain dropdown (no stock shown), Transfer/Keluar get this.
-  const pickerOptions = itemsInCategory.map((i) => {
-    let subtitle: string | undefined;
-    if (type === "transfer" && (transferFromLocation === "gudang_l2" || transferFromLocation === "gudang_l1")) {
-      subtitle = formatQty(stockAt(i, transferFromLocation), i.unit);
-    } else if (type === "keluar") {
-      subtitle = formatQty(stockAt(i, keluarFromLocation), i.unit);
-    }
-    return { id: i.id, name: i.name, subtitle };
-  });
+  // Every item in the category is listed, including the ones with no
+  // stock at the source location: those are greyed out and unselectable
+  // rather than hidden, so "item hilang" and "item belum didaftarkan"
+  // stop looking identical.
+  const selectableIds = new Set(itemsInCategory.map((i) => i.id));
+  const pickerOptions = items
+    .filter((i) => i.category === category)
+    .map((i) => {
+      let subtitle: string | undefined;
+      if (type === "transfer" && (transferFromLocation === "gudang_l2" || transferFromLocation === "gudang_l1")) {
+        subtitle = formatQty(stockAt(i, transferFromLocation), i.unit);
+      } else if (type === "keluar") {
+        subtitle = formatQty(stockAt(i, keluarFromLocation), i.unit);
+      }
+      return { id: i.id, name: i.name, subtitle, disabled: !selectableIds.has(i.id) };
+    });
 
   const showBpomWarning =
     type === "transfer" &&
@@ -258,10 +267,13 @@ export function InputStokForm({
         ) : (
           <ItemPicker options={pickerOptions} value={selectedItem?.id ?? ""} onChange={setItemId} />
         )}
-        {itemsInCategory.length === 0 && (
+        {type !== "masuk" && itemsInCategory.length === 0 && (
           <p className="mt-1 text-xs text-stone-400">
-            Tidak ada item dengan stok tersedia untuk dipindahkan dari lokasi ini.
+            Tidak ada item dengan stok tersedia di lokasi ini. Item yang tampil abu-abu stoknya 0.
           </p>
+        )}
+        {type !== "masuk" && itemsInCategory.length > 0 && pickerOptions.some((o) => o.disabled) && (
+          <p className="mt-1 text-xs text-stone-400">Item abu-abu stoknya 0 di lokasi asal.</p>
         )}
         {selectedItem?.category === "fg" && selectedItem.bpom_tag && (
           <span
@@ -341,7 +353,9 @@ export function InputStokForm({
           <label className="mb-1 block text-sm text-stone-600">Lokasi</label>
           <select className="w-full" value={location} onChange={(e) => setLocation(e.target.value as LocationType)}>
             <option value="gudang_l2">Gudang lantai 2</option>
-            {category === "fg" && <option value="gudang_l1">Gudang lantai 1</option>}
+            {/* Packaging can arrive straight at L1 — some items (kardus,
+                bubble wrap) never pass through L2 at all. */}
+            {category !== "bahan_baku" && <option value="gudang_l1">Gudang lantai 1</option>}
           </select>
         </div>
       )}

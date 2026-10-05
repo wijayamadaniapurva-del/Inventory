@@ -7,6 +7,12 @@ export interface ItemPickerOption {
   id: string;
   name: string;
   subtitle?: string;
+  /**
+   * Out of stock at the source location. Still listed — hiding it makes
+   * a registered item look like it was never created — but greyed out
+   * and not selectable.
+   */
+  disabled?: boolean;
 }
 
 export function ItemPicker({
@@ -51,17 +57,25 @@ export function ItemPicker({
             <button
               key={o.id}
               type="button"
+              disabled={o.disabled}
               onClick={() => {
+                if (o.disabled) return;
                 onChange(o.id);
                 setOpen(false);
               }}
               className={
                 "!h-auto !rounded-none !border-0 !border-b !border-stone-100 last:!border-0 flex w-full items-center justify-between px-3 py-2 text-left text-sm font-normal " +
-                (o.id === value ? "!bg-accent-50 !text-accent-700" : "!bg-white text-stone-700 hover:!bg-stone-50")
+                (o.disabled
+                  ? "!bg-white !text-stone-300 !cursor-not-allowed"
+                  : o.id === value
+                    ? "!bg-accent-50 !text-accent-700"
+                    : "!bg-white text-stone-700 hover:!bg-stone-50")
               }
             >
               <span>{o.name}</span>
-              {o.subtitle && <span className="figure text-stone-400">{o.subtitle}</span>}
+              {o.subtitle && (
+                <span className={"figure " + (o.disabled ? "text-stone-300" : "text-stone-400")}>{o.subtitle}</span>
+              )}
             </button>
           ))}
           {options.length === 0 && <p className="px-3 py-2 text-sm text-stone-400">Tidak ada item.</p>}

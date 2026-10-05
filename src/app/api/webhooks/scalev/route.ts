@@ -30,8 +30,52 @@ function readSecret(request: NextRequest): string | null {
 
 // Scalev (and most dashboards) ping the URL with a GET when you save it.
 // Answering 200 here is what makes the endpoint "connect".
-export async function GET() {
-  return NextResponse.json({ ok: true, endpoint: "scalev-webhook", method: "POST" });
+//
+// Adding the correct ?secret= turns this into a self-check page: it
+// answers the three questions that otherwise need a Supabase query —
+// is the secret set, can the server reach the database, and has any
+// webhook actually arrived.
+export async function GET(request: NextRequest) {
+  const expected = process.env.SCALEV_WEBHOOK_SECRET;
+  const base = { ok: true, endpoint: "scalev-webhook", method: "POST" };
+
+  if (!expected || readSecret(request) !== expected) {
+    return NextResponse.json(base);
+  }
+
+  const diagnostics: Record<string, unknown> = {
+    secret_configured: true,
+    service_key_configured: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    status_keluar: process.env.SCALEV_STATUS_KELUAR || "(default)",
+    status_masuk: process.env.SCALEV_STATUS_MASUK || "(default)",
+  };
+
+  try {
+    const supabase = createServiceClient();
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const { count, error: countError } = await supabase
+      .from("scalev_sync_log")
+      .select("id", { count: "exact", head: true })
+      .gte("created_at", since);
+
+    if (countError) throw new Error(countError.message);
+
+    const { data: last } = await supabase
+      .from("scalev_sync_log")
+      .select("created_at, direction, status, note, event_key")
+      .order("created_at", { ascending: false })
+      .limit(3);
+
+    diagnostics.database = "ok";
+    diagnostics.webhook_calls_24h = count ?? 0;
+    diagnostics.last_entries = last ?? [];
+  } catch (e) {
+    diagnostics.database = "error";
+    diagnostics.database_error = e instanceof Error ? e.message : String(e);
+  }
+
+  return NextResponse.json({ ...base, diagnostics });
 }
 
 export async function HEAD() {
