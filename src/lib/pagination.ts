@@ -1,6 +1,6 @@
-// Shared paging rules for every list in the app, so "20 per halaman"
+// Shared paging rules for every list in the app, so the page size
 // lives in exactly one place.
-export const PAGE_SIZE = 20;
+export const PAGE_SIZE = 15;
 
 export function pageCountOf(total: number, pageSize: number = PAGE_SIZE): number {
   return Math.max(1, Math.ceil(total / pageSize));
