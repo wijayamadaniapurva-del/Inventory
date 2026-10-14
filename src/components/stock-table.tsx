@@ -42,10 +42,13 @@ export function StockTable({
   rows,
   expiryBatches,
   bufferPercent,
+  showValues = true,
 }: {
   rows: CurrentStockRow[];
   expiryBatches: Record<string, ExpiryBatch[]>;
   bufferPercent: number;
+  /** CS sees quantities only — no purchase price, no stock value. */
+  showValues?: boolean;
 }) {
   const [tab, setTab] = useState<TabValue>("all");
   const [lokasi, setLokasi] = useState<LokasiValue>("all");
@@ -87,8 +90,7 @@ export function StockTable({
       [`Stok (${lokasiLabel})`]: line.qty,
       Satuan: r.unit,
       "Tag BPOM": r.category === "fg" ? (r.bpom_tag === "bpom" ? "BPOM" : "Non-BPOM") : "",
-      Harga: r.default_price,
-      Nilai: line.qty * r.default_price,
+      ...(showValues ? { Harga: r.default_price, Nilai: line.qty * r.default_price } : {}),
     })),
   );
 
@@ -98,8 +100,8 @@ export function StockTable({
     allLokasi ? "110px" : null,
     "110px",
     isFg ? "90px" : null,
-    "110px",
-    "130px",
+    showValues ? "110px" : null,
+    showValues ? "130px" : null,
   ]
     .filter(Boolean)
     .join(" ");
@@ -139,10 +141,12 @@ export function StockTable({
           </select>
         </div>
         <div className="flex items-center gap-3">
-          <p className="text-sm text-stone-500">
-            {isAll ? "Total nilai keseluruhan" : "Total nilai"}:{" "}
-            <span className="figure font-medium text-stone-800">{formatCurrency(isAll ? grandTotal : totalValue)}</span>
-          </p>
+          {showValues && (
+            <p className="text-sm text-stone-500">
+              {isAll ? "Total nilai keseluruhan" : "Total nilai"}:{" "}
+              <span className="figure font-medium text-stone-800">{formatCurrency(isAll ? grandTotal : totalValue)}</span>
+            </p>
+          )}
           <ExportExcelButton
             rows={exportRows}
             filename={allLokasi ? "stok-purvu.xlsx" : `stok-purvu-${lokasi.replace("gudang_", "")}.xlsx`}
@@ -164,8 +168,8 @@ export function StockTable({
             {allLokasi && <span>Kadaluarsa</span>}
             <span>Stok</span>
             {isFg && <span>Tag BPOM</span>}
-            <span>Harga</span>
-            <span>Nilai</span>
+            {showValues && <span>Harga</span>}
+            {showValues && <span>Nilai</span>}
           </div>
 
           {pageRows.map((r) => {
@@ -204,8 +208,10 @@ export function StockTable({
                           )}
                         </span>
                       )}
-                      <span className="figure text-stone-500">{isFirst ? formatCurrency(r.default_price) : ""}</span>
-                      <span className="figure">{formatCurrency(line.qty * r.default_price)}</span>
+                      {showValues && (
+                        <span className="figure text-stone-500">{isFirst ? formatCurrency(r.default_price) : ""}</span>
+                      )}
+                      {showValues && <span className="figure">{formatCurrency(line.qty * r.default_price)}</span>}
                     </div>
                   );
                 })}

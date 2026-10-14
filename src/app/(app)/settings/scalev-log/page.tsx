@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PaginationLinks } from "@/components/pagination";
 import { PAGE_SIZE, pageCountOf, parsePage } from "@/lib/pagination";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function ScalevLogPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
+  await requireAccess("/settings");
   const params = await searchParams;
   const supabase = await createClient();
 

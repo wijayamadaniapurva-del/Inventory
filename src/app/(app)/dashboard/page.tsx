@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, formatQty } from "@/lib/utils";
 import { computeSafetyStock } from "@/lib/safety-stock";
 import type { CurrentStockRow, JobOrder } from "@/lib/types";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ function groupValue(rows: CurrentStockRow[], predicate: (r: CurrentStockRow) => 
 }
 
 export default async function DashboardPage() {
+  await requireAccess("/dashboard");
   const supabase = await createClient();
 
   const [{ data: stockRows }, { data: runningOrders }, { data: fgBatches }, { data: expiringMaterials }, { data: bufferSetting }] = await Promise.all([

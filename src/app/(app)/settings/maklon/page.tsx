@@ -2,10 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import type { Maklon } from "@/lib/types";
 import { MaklonManager } from "@/components/maklon-manager";
 import { SettingsTabs } from "@/components/settings-tabs";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function MaklonSettingsPage() {
+  await requireAccess("/settings");
   const supabase = await createClient();
 
   const { data: maklonList } = await supabase

@@ -1,5 +1,7 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types";
+import { canAccess, homePathFor } from "@/lib/roles";
 
 export async function getCurrentProfile(): Promise<Profile | null> {
   const supabase = await createClient();
@@ -27,4 +29,16 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     role: "warehouse_staff",
     created_at: new Date().toISOString(),
   };
+}
+
+/**
+ * Page guard. Call at the top of every page under (app) with that page's
+ * own path: a hidden menu item is not access control, the URL still
+ * works without this.
+ */
+export async function requireAccess(path: string): Promise<Profile> {
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/login");
+  if (!canAccess(profile.role, path)) redirect(homePathFor(profile.role));
+  return profile;
 }

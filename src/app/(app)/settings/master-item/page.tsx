@@ -2,10 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import type { MasterItem } from "@/lib/types";
 import { MasterItemManager } from "@/components/master-item-manager";
 import { SettingsTabs } from "@/components/settings-tabs";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function MasterItemPage() {
+  await requireAccess("/settings");
   const supabase = await createClient();
 
   const { data: items } = await supabase

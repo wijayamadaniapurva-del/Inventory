@@ -2,10 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import type { MasterItem } from "@/lib/types";
 import { SafetyStockManager } from "@/components/safety-stock-manager";
 import { SettingsTabs } from "@/components/settings-tabs";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function SafetyStockPage() {
+  await requireAccess("/settings");
   const supabase = await createClient();
 
   const [{ data: items }, { data: bufferSetting }] = await Promise.all([

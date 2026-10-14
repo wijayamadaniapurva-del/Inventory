@@ -4,6 +4,7 @@ import type { StockMovement } from "@/lib/types";
 import { ExportExcelButton } from "@/components/export-excel-button";
 import { PaginationLinks } from "@/components/pagination";
 import { PAGE_SIZE, pageCountOf, parsePage } from "@/lib/pagination";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function RiwayatPage({
 }: {
   searchParams: Promise<{ kategori?: string; lokasi?: string; tanggal?: string; q?: string; page?: string }>;
 }) {
+  await requireAccess("/riwayat");
   const params = await searchParams;
   const supabase = await createClient();
 

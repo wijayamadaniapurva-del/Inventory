@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { MonthlyRecapTable, type SnapshotRow } from "@/components/monthly-recap-table";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function RekapBulananPage() {
+  await requireAccess("/stok");
   const supabase = await createClient();
 
   const { data: snapshots } = await supabase

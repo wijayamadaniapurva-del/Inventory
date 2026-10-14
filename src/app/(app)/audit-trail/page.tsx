@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { computeSisaBahan, type SisaRow } from "@/lib/sisa-bahan";
 import { AuditTrailTable, type AuditRow } from "@/components/audit-trail-table";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ interface VarianceRow {
 }
 
 export default async function AuditTrailPage() {
+  await requireAccess("/audit-trail");
   const supabase = await createClient();
 
   const { data: variance } = await supabase

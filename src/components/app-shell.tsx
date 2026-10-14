@@ -18,15 +18,18 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { Logo } from "@/components/logo";
 import type { UserRole } from "@/lib/types";
+import { canAccess } from "@/lib/roles";
 
-const LINKS: { href: string; label: string; icon: typeof LayoutDashboard; roles: UserRole[] }[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["owner", "spv", "warehouse_staff", "finance"] },
-  { href: "/input", label: "Input stok", icon: ClipboardPlus, roles: ["warehouse_staff", "spv"] },
-  { href: "/stok", label: "Stok", icon: Boxes, roles: ["owner", "spv", "warehouse_staff", "finance"] },
-  { href: "/job-order", label: "Job order & shipment", icon: Truck, roles: ["owner", "spv", "warehouse_staff", "finance"] },
-  { href: "/audit-trail", label: "Audit Trail", icon: SearchCheck, roles: ["owner", "spv", "warehouse_staff", "finance"] },
-  { href: "/riwayat", label: "Riwayat", icon: History, roles: ["owner", "spv", "warehouse_staff", "finance"] },
-  { href: "/settings/master-item", label: "Master Data", icon: Settings, roles: ["spv"] },
+// Visibility comes from lib/roles.ts, the same map the pages themselves
+// enforce, so a menu can never show a page that would bounce the user.
+const LINKS: { href: string; label: string; icon: typeof LayoutDashboard }[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/input", label: "Input stok", icon: ClipboardPlus },
+  { href: "/stok", label: "Stok", icon: Boxes },
+  { href: "/job-order", label: "Job order & shipment", icon: Truck },
+  { href: "/audit-trail", label: "Audit Trail", icon: SearchCheck },
+  { href: "/riwayat", label: "Riwayat", icon: History },
+  { href: "/settings/master-item", label: "Master Data", icon: Settings },
 ];
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -34,6 +37,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   spv: "SPV Warehouse & Produksi",
   warehouse_staff: "Warehouse Staff",
   finance: "Finance",
+  cs: "Customer Service",
 };
 
 function initials(name: string | null) {
@@ -46,7 +50,7 @@ function SidebarContent({ role, fullName, onNavigate }: { role: UserRole; fullNa
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const visibleLinks = LINKS.filter((link) => link.roles.includes(role));
+  const visibleLinks = LINKS.filter((link) => canAccess(role, link.href));
 
   async function handleSignOut() {
     await supabase.auth.signOut();

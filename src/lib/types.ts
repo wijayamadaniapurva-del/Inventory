@@ -3,7 +3,7 @@
 //   npx supabase gen types typescript --project-id <id> > src/lib/types.ts
 // and re-adding the domain types below.
 
-export type UserRole = "owner" | "spv" | "warehouse_staff" | "finance";
+export type UserRole = "owner" | "spv" | "warehouse_staff" | "finance" | "cs";
 
 export type ItemCategory = "bahan_baku" | "packaging" | "fg";
 export type ItemUnit = "liter" | "pcs" | "meter";

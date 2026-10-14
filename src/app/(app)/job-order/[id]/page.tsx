@@ -10,6 +10,7 @@ import { CloseJobOrderForm } from "@/components/close-job-order-form";
 import { EditServiceFee } from "@/components/edit-service-fee";
 import { QcForm } from "@/components/qc-form";
 import { ReopenJobOrderButton } from "@/components/reopen-job-order-button";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ export default async function JobOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireAccess("/job-order");
   const { id } = await params;
   const supabase = await createClient();
   const profile = await getCurrentProfile();

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { CurrentStockRow } from "@/lib/types";
 import { computeExpiryBatches, type ExpiryBatch, type FefoMovement } from "@/lib/fefo";
 import { StockTable } from "@/components/stock-table";
+import { requireAccess } from "@/lib/auth";
+import { canSeeValues } from "@/lib/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,7 @@ async function fetchAllMovements(supabase: Awaited<ReturnType<typeof createClien
 }
 
 export default async function StokPage() {
+  const profile = await requireAccess("/stok");
   const supabase = await createClient();
 
   const [{ data: rows }, { data: bufferSetting }, movements] = await Promise.all([
@@ -59,11 +62,18 @@ export default async function StokPage() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="page-title">Stok</h1>
-        <Link href="/stok/rekap-bulanan" className="text-sm text-accent-600">
-          Rekap Bulanan →
-        </Link>
+        {canSeeValues(profile.role) && (
+          <Link href="/stok/rekap-bulanan" className="text-sm text-accent-600">
+            Rekap Bulanan →
+          </Link>
+        )}
       </div>
-      <StockTable rows={rows ?? []} expiryBatches={expiryBatches} bufferPercent={bufferPercent} />
+      <StockTable
+        rows={rows ?? []}
+        expiryBatches={expiryBatches}
+        bufferPercent={bufferPercent}
+        showValues={canSeeValues(profile.role)}
+      />
     </div>
   );
 }

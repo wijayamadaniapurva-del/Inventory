@@ -41,7 +41,8 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    // Role decides the landing page; "/" resolves it server-side.
+    router.push("/");
     router.refresh();
   }
 

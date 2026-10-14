@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatWib, formatQty, LOCATION_LABEL } from "@/lib/utils";
 import type { CurrentStockRow, MasterItem, StockMovement } from "@/lib/types";
 import { InputStokForm } from "@/components/input-stok-form";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ function locationLabel(loc: string | null, maklonName?: string | null) {
 }
 
 export default async function InputStokPage() {
+  await requireAccess("/input");
   const supabase = await createClient();
 
   const [{ data: items }, { data: recent }, { data: stockRows }] = await Promise.all([

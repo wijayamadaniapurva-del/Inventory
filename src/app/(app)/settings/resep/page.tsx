@@ -2,10 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import type { ItemBom, MasterItem } from "@/lib/types";
 import { BomManager } from "@/components/bom-manager";
 import { SettingsTabs } from "@/components/settings-tabs";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function ResepPage() {
+  await requireAccess("/settings");
   const supabase = await createClient();
 
   const [{ data: fgItems }, { data: materials }, { data: bomRows }] = await Promise.all([

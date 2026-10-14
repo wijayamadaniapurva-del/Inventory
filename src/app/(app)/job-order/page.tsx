@@ -6,6 +6,7 @@ import { NewJobOrderForm } from "@/components/new-job-order-form";
 import { DeleteJobOrderButton } from "@/components/delete-job-order-button";
 import { PaginationLinks } from "@/components/pagination";
 import { PAGE_SIZE, pageCountOf, parsePage } from "@/lib/pagination";
+import { requireAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export default async function JobOrderListPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
+  await requireAccess("/job-order");
   const params = await searchParams;
   const supabase = await createClient();
   const profile = await getCurrentProfile();
