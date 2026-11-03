@@ -184,6 +184,12 @@ export function InputStokForm({
     selectedItem?.bpom_tag === "non_bpom";
 
   const showExpiryField = type === "masuk" && (category === "bahan_baku" || category === "fg");
+  // Only FG must carry an expiry date. Raw materials here (ethanol,
+  // bibit) mostly arrive without one printed, and forcing the field
+  // would just get a made-up date typed in — worse than leaving it
+  // empty. The field still shows for bahan baku, for the ones that do
+  // have a date.
+  const expiryRequired = type === "masuk" && category === "fg";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -192,8 +198,8 @@ export function InputStokForm({
     // Expiry is mandatory for anything that expires: stock saved without
     // it can never be placed on a batch afterwards, it just becomes an
     // untraceable "—" row on the Stok page.
-    if (showExpiryField && !expiryDate) {
-      setMessage({ kind: "error", text: "Tanggal kadaluarsa wajib diisi untuk bahan baku dan finish good." });
+    if (expiryRequired && !expiryDate) {
+      setMessage({ kind: "error", text: "Tanggal kadaluarsa wajib diisi untuk finish good." });
       return;
     }
 
@@ -340,7 +346,9 @@ export function InputStokForm({
 
       {showExpiryField && (
         <div>
-          <label className="mb-1 block text-sm text-stone-600">Tanggal kadaluarsa</label>
+          <label className="mb-1 block text-sm text-stone-600">
+            Tanggal kadaluarsa{expiryRequired ? "" : " (opsional)"}
+          </label>
           <DatePicker
             value={expiryDate}
             onChange={setExpiryDate}
