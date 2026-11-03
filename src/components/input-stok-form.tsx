@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { DatePicker } from "@/components/date-picker";
 import { ItemPicker } from "@/components/item-picker";
@@ -45,9 +45,12 @@ const TYPE_STYLE: Record<MovementType, { active: string; idle: string }> = {
 export function InputStokForm({
   items,
   stockByItem,
+  lastExpiryByItem = {},
 }: {
   items: MasterItem[];
   stockByItem: Record<string, { l2: number; l1: number }>;
+  /** Expiry date last recorded per item, used to pre-fill the field. */
+  lastExpiryByItem?: Record<string, string>;
 }) {
   const supabase = createClient();
 
@@ -60,6 +63,9 @@ export function InputStokForm({
   const [keluarFromLocation, setKeluarFromLocation] = useState<"gudang_l2" | "gudang_l1">("gudang_l2");
   const [keluarDestination, setKeluarDestination] = useState<KeluarDestination>("");
   const [expiryDate, setExpiryDate] = useState("");
+  // Which item the expiry field currently belongs to. A ref, not state:
+  // it only guards the pre-fill below and should never trigger a render.
+  const expiryFilledFor = useRef<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
@@ -111,6 +117,19 @@ export function InputStokForm({
   );
 
   const selectedItem = itemsInCategory.find((i) => i.id === itemId) ?? itemsInCategory[0];
+
+  // Pre-fill the expiry date with the one last used for this item.
+  // A date already edited for THIS item is left alone; switching to
+  // another item always loads that item's own last date (or clears the
+  // field when it has none), so a date never carries over by accident.
+  const selectedItemId = selectedItem?.id ?? null;
+  useEffect(() => {
+    if (type !== "masuk" || !selectedItemId) return;
+    if (expiryFilledFor.current !== selectedItemId) {
+      setExpiryDate(lastExpiryByItem[selectedItemId] ?? "");
+      expiryFilledFor.current = selectedItemId;
+    }
+  }, [selectedItemId, type, lastExpiryByItem]);
 
   function resetItemFor(
     nextCategory: ItemCategory,
@@ -170,6 +189,14 @@ export function InputStokForm({
     e.preventDefault();
     if (!selectedItem || !qty) return;
 
+    // Expiry is mandatory for anything that expires: stock saved without
+    // it can never be placed on a batch afterwards, it just becomes an
+    // untraceable "—" row on the Stok page.
+    if (showExpiryField && !expiryDate) {
+      setMessage({ kind: "error", text: "Tanggal kadaluarsa wajib diisi untuk bahan baku dan finish good." });
+      return;
+    }
+
     if (!window.confirm(`Simpan ${type} ${qty} ${selectedItem.unit} ${selectedItem.name}?`)) return;
 
     setSaving(true);
@@ -195,7 +222,8 @@ export function InputStokForm({
 
     setMessage({ kind: "success", text: "Tersimpan." });
     setQty("");
-    setExpiryDate("");
+    // The expiry stays: the next entry is usually the same batch, and
+    // it's still editable. Clearing it is what caused it to be skipped.
   }
 
   return (
@@ -312,8 +340,19 @@ export function InputStokForm({
 
       {showExpiryField && (
         <div>
-          <label className="mb-1 block text-sm text-stone-600">Tanggal kadaluarsa (opsional)</label>
-          <DatePicker value={expiryDate} onChange={setExpiryDate} />
+          <label className="mb-1 block text-sm text-stone-600">Tanggal kadaluarsa</label>
+          <DatePicker
+            value={expiryDate}
+            onChange={setExpiryDate}
+          />
+          {selectedItemId && lastExpiryByItem[selectedItemId] === expiryDate && expiryDate && (
+            <p className="mt-1 text-xs text-stone-400">
+              Terisi otomatis dari input terakhir item ini. Ubah kalau batch-nya beda.
+            </p>
+          )}
+          {selectedItemId && !lastExpiryByItem[selectedItemId] && (
+            <p className="mt-1 text-xs text-stone-400">Belum ada riwayat tanggal untuk item ini — isi dari kemasan barang.</p>
+          )}
         </div>
       )}
 
