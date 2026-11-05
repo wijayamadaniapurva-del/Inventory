@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatWib, formatQty, LOCATION_LABEL, CATEGORY_LABEL } from "@/lib/utils";
 import type { StockMovement } from "@/lib/types";
 import { ExportExcelButton } from "@/components/export-excel-button";
+import { RiwayatFilters } from "@/components/riwayat-filters";
 import { PaginationLinks } from "@/components/pagination";
 import { PAGE_SIZE, pageCountOf, parsePage } from "@/lib/pagination";
 import { requireAccess } from "@/lib/auth";
@@ -16,6 +17,13 @@ const MOVEMENT_COLOR: Record<string, string> = {
   keluar: "text-red-600",
   transfer: "text-accent-600",
 };
+
+// Movements written by the Scalev webhook carry "Scalev order <id>" in
+// their note; nothing typed by hand does. That's what separates an
+// automatic sale from a manual entry in the list below.
+function isFromScalev(note: string | null | undefined): boolean {
+  return Boolean(note?.toLowerCase().includes("scalev"));
+}
 
 function locationLabel(loc: string | null, maklonName?: string | null) {
   if (!loc) return "-";
@@ -39,16 +47,10 @@ export default async function RiwayatPage({
     let q = supabase
       .from("stock_movements")
       .select(
-        "id, movement_type, qty, from_location, to_location, created_at, master_items!inner(name, unit, category), maklon(name)",
+        "id, movement_type, qty, from_location, to_location, note, created_at, master_items!inner(name, unit, category), maklon(name)",
         head ? { count: "exact", head: true } : {},
       )
-      .order("created_at", { ascending: false })
-      // Outbound-to-customer isn't tracked manually here (regular sales
-      // sync from Scalev separately) — always excluded from this log.
-      // The is.null half matters: a plain "neq" would also drop rows
-      // where the column is empty, since NULL <> 'customer' isn't true.
-      .or("from_location.is.null,from_location.neq.customer")
-      .or("to_location.is.null,to_location.neq.customer");
+      .order("created_at", { ascending: false });
 
     if (params.kategori) {
       q = q.eq("master_items.category", params.kategori);
@@ -93,6 +95,8 @@ export default async function RiwayatPage({
       m.movement_type === "transfer"
         ? `${locationLabel(m.from_location, m.maklon?.name)} -> ${locationLabel(m.to_location, m.maklon?.name)}`
         : locationLabel(m.from_location || m.to_location, m.maklon?.name),
+    Sumber: isFromScalev(m.note) ? "Scalev" : "Input manual",
+    Catatan: m.note ?? "",
   }));
 
   return (
@@ -102,37 +106,12 @@ export default async function RiwayatPage({
         <ExportExcelButton rows={exportRows} filename="riwayat-stok.xlsx" sheetName="Riwayat" />
       </div>
 
-      <form className="flex flex-wrap gap-2" method="get">
-        <select name="kategori" defaultValue={params.kategori ?? ""} className="w-40">
-          <option value="">Semua kategori</option>
-          {Object.entries(CATEGORY_LABEL).map(([k, label]) => (
-            <option key={k} value={k}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <select name="lokasi" defaultValue={params.lokasi ?? ""} className="w-44">
-          <option value="">Semua lokasi</option>
-          {Object.entries(LOCATION_LABEL)
-            .filter(([k]) => k !== "customer")
-            .map(([k, label]) => (
-              <option key={k} value={k}>
-                {label}
-              </option>
-            ))}
-        </select>
-        <input type="date" name="tanggal" defaultValue={params.tanggal ?? ""} className="w-40" />
-        <input
-          type="text"
-          name="q"
-          placeholder="Cari SKU atau item"
-          defaultValue={params.q ?? ""}
-          className="flex-1 min-w-[160px]"
-        />
-        <button type="submit" className="btn-primary">
-          Filter
-        </button>
-      </form>
+      <RiwayatFilters
+        kategori={params.kategori}
+        lokasi={params.lokasi}
+        tanggal={params.tanggal}
+        q={params.q}
+      />
 
       <div className="card overflow-x-auto !p-0">
         <table className="w-full text-sm">
@@ -150,7 +129,17 @@ export default async function RiwayatPage({
               <tr key={m.id} className="border-b border-stone-100">
                 <td className="px-4 py-2 whitespace-nowrap">{formatWib(m.created_at)}</td>
                 <td className={"px-4 py-2 " + (MOVEMENT_COLOR[m.movement_type] ?? "")}>{m.movement_type}</td>
-                <td className="px-4 py-2">{m.master_items?.name}</td>
+                <td className="px-4 py-2">
+                  <span>{m.master_items?.name}</span>
+                  {isFromScalev(m.note) && (
+                    <span
+                      className="badge ml-2 bg-accent-50 text-accent-700"
+                      title={m.note ?? undefined}
+                    >
+                      Scalev
+                    </span>
+                  )}
+                </td>
                 <td className="figure px-4 py-2">
                   {m.master_items ? formatQty(m.qty, m.master_items.unit) : m.qty}
                 </td>
